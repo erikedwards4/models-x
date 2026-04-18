@@ -150,13 +150,19 @@ But we are using uv, so we'll use uv add, and Google AI recommends the following
 ```
 uv add "jax[cuda13_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 ```
-This works!  
 Note that this will install reasonably new versions of Numpy, Scipy, opt-einsum and ml-dtypes. It's better to let uv and JAX choose these versions rather than to uv add them first with some other versions. Conflicts otherwise arise easily.  
 
 Also add the better static typing for JAX:  
 ```
 uv add jaxtyping typeguard
 ```
+
+This seems to work, but later I only find CpuDevice(id=0) for jax.devices().  
+So, later I did:  
+```
+uv add -U "jax[cuda13]"
+```
+Now I get CudaDevice(id=0) for jax.devices()!
 
 ## Install packages with uv
 Now uv add other Python packages with the venv activated:  

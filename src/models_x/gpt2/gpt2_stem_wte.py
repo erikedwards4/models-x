@@ -30,20 +30,20 @@ class GPT2StemWTE():
         # Self attributes
         self.vocab_size = int(config.vocab_size)
         self.d_model = int(config.d_model)
-        self.dtype = config.dtype
+        self.dtype: jax.typing.DTypeLike = config.dtype
 
         # Embedding weights shape
         self.wte_shape = (self.vocab_size, self.d_model)
 
     def init_params(self: Self,
-                    key: Array,
+                    prng_key: Array,
                     ) -> dict[str, Array]:
         """
         Initialize the parameters dict.
         """
         # Embedding weights
         # GPT-2 uses a normal distribution with std = 0.02
-        wte = jax.random.normal(key=key,
+        wte = jax.random.normal(key=prng_key,
                                 shape=self.wte_shape,
                                 dtype=self.dtype)   # V x D
         wte = wte * 0.02                            # V x D
