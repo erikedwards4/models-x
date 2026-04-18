@@ -8,3 +8,26 @@ wheels/
 
 # Virtual environments
 .venv
+
+# .env file
+*.env
+
+# VS Code
+.vscode
+
+# Logs
+log/
+*.log
+
+# Data/model files
+datasets*/
+*.sqlite3
+*.bz
+*.gz
+*.tar
+*.zip
+*.tmp
+tmp/
+
+# Stubs
+tests/stubs/*

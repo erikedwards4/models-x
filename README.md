@@ -1,5 +1,5 @@
 # models-x
-Repo for external models in Jax.  
+Repo for external models in JAX.  
 
 See repo model-ext for external models in Pytorch.  
 See repo models-int for internally-developed models.  

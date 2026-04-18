@@ -46,8 +46,8 @@ uv python install 3.14
 ## Make project using uv
 Make the project repo using uv:  
 ```
-name="models-ext"
-descr="Repo for external models in Pytorch"
+name="models-x"
+descr="Repo for external models in Jax"
 uv init --lib --name "${name}" --description "${descr}" "${name}"
 cd "${name}"
 ```
@@ -125,44 +125,38 @@ or apps; it remains the most standard and makes Python imports the most canonica
 and reliable. This is also initiated by uv when it makes the repo.  
 
 Note that Python imports require underscores rather than hyphens.  
-That is why the repo is "models-ext" and the src dir is "src/models_ext".  
+That is why the repo is "models-x" and the src dir is "src/models_x".  
 
 We will have subdirs for major categories of classes that arise:  
 ```
-mkdir -m 764 src/models_ext/{text,audio}
+mkdir -m 764 src/models_x/{text,audio}
 ```
 
 For Python imports and package best-practices, the init files go herein:  
 ```
-touch src/models_ext/__init__.py
-touch src/models_ext/{text,audio}/__init__.py
+touch src/models_x/__init__.py
+touch src/models_x/{text,audio}/__init__.py
 chmod -R 764 src
 ```
 
-## Install torch with uv
+## Install JAX with uv
 Before installing anything else, it's best to get the hard one over with,  
 so that no minor/annoying conflicts (like the exact version of pip) arise.  
-From the Pytorch website, it says to use:  
+From the JAX website, it says to use:  
 ```
-pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu131
+pip install -U "jax[cuda13_pip]"
 ```
-Whereas Google AI says to use:  
+But we are using uv, so we'll use uv add, and Google AI recommends the following with the flag for a recent GPU like the NVIDIA Blackwell:  
 ```
-uv add torch torchvision torchaudio --extra-index-url https://download.pytorch.org
-```
-But uv --help says that --index-url is deprecated in favor of --default-index,  
-and that --extra-index-url is deprecated in favor of --index.  
-If you use:  
-```
-uv add torch torchvision torchaudio --default-index https://download.pytorch.org/whl/cu131
-```
-Then the pytorch.org/whl will become the default index (making below installs difficult).  
-So I arrive at:  
-```
-uv add torch torchvision torchaudio --index https://download.pytorch.org/whl/cu131
+uv add "jax[cuda13_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 ```
 This works!  
-Note that this will install reasonably new versions of Numpy, Pillow, setuptools, typing-extensions, and lots of NVIDIA things (nvidia-{cublas,cuda-cupti,cuda-nvrtc,cuda-runtime,cudnn-cu13,cufft,cufile,curand,cusolver,cusparse,cusparelt-cu13,nccl-cu13,nvjitlink,nvshmem-cu13,nvtx}), as well as OpenAI's Triton (used by torch.compile). Again, it's better to let torch choose these versions rather than to uv add them first with some other versions. Conflicts otherwise arise easily.  
+Note that this will install reasonably new versions of Numpy, Scipy, opt-einsum and ml-dtypes. It's better to let uv and JAX choose these versions rather than to uv add them first with some other versions. Conflicts otherwise arise easily.  
+
+Also add the better static typing for JAX:  
+```
+uv add jaxtyping typeguard
+```
 
 ## Install packages with uv
 Now uv add other Python packages with the venv activated:  
@@ -171,11 +165,17 @@ cd "${repodir}"
 source .venv/bin/activate
 uv add pydantic pydantic-settings
 uv add loguru
-uv add transformers accelerate
+uv add transformers
 ```
 One could also uv pip install the packages, but uv add is the higher-level API  
 for projects, and it is recommended as it better resolves conflicts and updates  
 the project.toml and uv.lock files.  
+
+If we require porting a model from Pytorch to JAX, it is best to install the  
+smaller, CPU-only version of torch:  
+```
+uv add torch --index-url https://download.pytorch.org/whl/cpu
+```
 
 ## Dev packages and testing
 Now uv add packages needed only during development (not during prod or general use).  
@@ -183,11 +183,8 @@ These are for checking, testing, debugging and improving Python code in general:
 ```
 uv add --dev pyflakes pycodestyle flake8 pylint mypy ruff pytest
 uv add --dev python-dotenv
-uv add --dev setuptools packaging ninja
-uv add --dev pydeps
-uv add --dev data-science-types
-uv add --dev types-torch
 uv add --dev types-PyYAML
+uv add --dev data-science-types
 ```
 I use these extensively during development. They do:  
 - pyflakes -- basic syntax checking  
@@ -202,24 +199,6 @@ For pytest, the unit testing code goes as usual in a 'tests' subdir:
 ```
 cd "${repodir}"
 mkdir -pm 764 tests
-```
-
-For mypy, torchaudio is missing good typing, so either ignore:  
-```
-echo "" >> pyproject.toml
-echo "[tool.mypy]" >> pyproject.toml
-echo 'python_version = "3.14"' >> pyproject.toml
-echo "check_untyped_defs = true" >> pyproject.toml
-echo "show_error_codes = true" >> pyproject.toml
-echo "" >> pyproject.toml
-echo "[[tool.mypy.overrides]]" >> pyproject.toml
-echo 'module = ["torchvision.*", "torchaudio.*", "torchaudio.functional.*"]' >> pyproject.toml
-echo "ignore_missing_imports = true" >> pyproject.toml
-```
-And/or generate placeholder stubs with:  
-```
-stubgen -p torchaudio -o tests/stubs/
-stubgen -p torchvision -o tests/stubs/
 ```
 
 Ignore any stubs made with stubgen:
@@ -241,7 +220,7 @@ In order to keep the dependencies minimal, do not permanently pip install or uv 
 ```
 uv run --with netron plot_netron.py
 ```
-This is just an example...   
+This is just an example (don't usually use netron)...   
 To see your dependency tree, use:  
 ```
 uv tree
@@ -256,20 +235,20 @@ echo "[build-system]" >> pyproject.toml
 echo "requires = ['hatchling']" >> pyproject.toml
 echo "build-backend = 'hatchling.build'" >> pyproject.toml
 ```
-And install the src/models_ext directory in the venv in editable mode:  
+And install the src/models_x directory in the venv in editable mode:  
 ```
 echo "" >> pyproject.toml
 echo "[tool.hatch.build.targets.wheel]" >> pyproject.toml
-echo "packages = ['src/models_ext']" >> pyproject.toml
-echo "artifacts = ['src/models_ext/py.typed']" >> pyproject.toml
+echo "packages = ['src/models_x']" >> pyproject.toml
+echo "artifacts = ['src/models_x/py.typed']" >> pyproject.toml
 ```
 And add the py.typed (needed by e.g. mypy):  
 ```
-touch src/models_ext/py.typed
-chmod 664 src/models_ext/py.typed
+touch src/models_x/py.typed
+chmod 664 src/models_x/py.typed
 ```
 Next uv sync and lock as above.  
-Now models_ext is like a 3rd-party package that can be used in imports.  
+Now models_x is like a 3rd-party package that can be used in imports.  
 It could even be used outside the repo via a pip install.  
 This is a good check that things are minimally working at the repo/package level:  
 ```
@@ -282,7 +261,7 @@ uv cache clean
 ```
 
 Now we have a src layout with an editable install, which is the industry-standard for a Python ML repo.  
-But the immediate purpose was to allow 'from models_ext.xxx.xxx import xxx' within the Python code.  
+But the immediate purpose was to allow 'from models_x.xxx.xxx import xxx' within the Python code.  
 
 ## Questions/comments
 erik.edwards4@gmail.com  
