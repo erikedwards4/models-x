@@ -36,13 +36,13 @@ def profile_callable(fun: Callable,
     assert callable(fun)
 
     # Warmup (first jit call triggers compilation)
-    for _ in range(4):
+    for _ in range(6):
         batch_out = fun(batch_in, **kwargs)
         batch_out.block_until_ready()
 
     # Actual profiled runs
     times: list[float] = []
-    for _ in range(8):
+    for _ in range(10):
         t0 = time.perf_counter()
         batch_out = fun(batch_in, **kwargs)
         batch_out.block_until_ready()

@@ -52,7 +52,7 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 16
+    ntoks = 1024
     size_in = (nbatch, ntoks)
     input_ids = jax.random.randint(key=prng_key,
                                    shape=size_in,
