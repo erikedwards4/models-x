@@ -62,8 +62,8 @@ class GPT2StemWTE():
         return {'wte': wte}
 
     def __call__(self: Self,
-                 params: dict[str, Array],
                  input_ids: Int[Array, "B T"],      # noqa: F722
+                 params: dict[str, Array],
                  ) -> Float[Array, "B T D"]:        # noqa: F722
         """
         B = batch_size (or micro-batch size)

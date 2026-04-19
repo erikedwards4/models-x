@@ -48,15 +48,14 @@ class GPT2StemWPE():
         return {'wpe': wpe}
 
     def __call__(self: Self,
+                 position_ids: Int[Array, "T"],     # noqa: F722
                  params: dict[str, Array],
-                 position_ids: Int[Array, "B T"],   # noqa: F722
-                 ) -> Float[Array, "B T D"]:        # noqa: F722
+                 ) -> Float[Array, "T D"]:          # noqa: F722
         """
-        B = batch_size (often 1 for WPE to broadcast)
         T = ntoks (num tokens, input seq len)
         D = d_model (num embeddings, model dim)
         """
         # torch.nn.Embedding lookup --> jnp.take
         return jnp.take(a=params['wpe'],
                         indices=position_ids,
-                        axis=0)                     # B x T x D
+                        axis=0)                     # T x D
