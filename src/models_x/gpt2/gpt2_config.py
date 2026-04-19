@@ -23,6 +23,7 @@ class GPT2Config():
 
     # General
     dtype: DTypeLike = field(default=jnp.float32, metadata=metadata)
+    init_std: float = field(default=0.02, metadata=metadata)
 
     # Architecture dimensions
     vocab_size: int = field(default=50257, metadata=metadata)
@@ -35,14 +36,18 @@ class GPT2Config():
     p_drop_stem: float = field(default=0.1, metadata=metadata)
     p_drop_attn: float = field(default=0.1, metadata=metadata)
     p_drop_res: float = field(default=0.1, metadata=metadata)
-    p_drop_mlp: float = field(default=0.1, metadata=metadata)
+    # p_drop_mlp: float = field(default=0.1, metadata=metadata)
     lnorm_eps: float = field(default=1e-5, metadata=metadata)
 
-    # Helper for head dimension
-    # @property
-    # def d_head(self: Self,
-    #            ) -> int:
-    #     """Sets d_head."""
-    #     assert self.d_model % self.nheads == 0, \
-    #         "d_model must be divisible by nheads"
-    #     return self.d_model // self.nheads
+    # Helpers for derived properties
+    @property
+    def d_hid(self: Self) -> int:
+        """Setd d_hid for the GTP2BlockMLP."""
+        return 4 * self.d_model
+
+    @property
+    def d_head(self: Self) -> int:
+        """Sets d_head for the GPT2BlockAtten."""
+        assert self.d_model % self.nheads == 0, \
+            "d_model must be divisible by nheads"
+        return self.d_model // self.nheads

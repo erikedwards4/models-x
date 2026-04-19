@@ -1,10 +1,11 @@
 """
 Pytest function for gpt2/gpt2_stem_wte.py.
 """
+import time
 import pytest
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Int, Array
+from jaxtyping import Float, Array
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_stem_wte import GPT2StemWTE
 
@@ -18,6 +19,8 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
     Pytest gpt2_stem_wte.GPT2StemWTE.
     """
     print("")
+    device = jax.devices("gpu")[0]
+    print_memory_stats(label="start")
 
     # Get config
     config = GPT2Config(vocab_size=vocab_size,
@@ -25,10 +28,10 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
                         dtype=dtype)
 
     # Get mdl
-    wte = GPT2StemWTE(config=config)
+    wte = GPT2StemWTE(cfg=config)
     assert isinstance(wte, GPT2StemWTE)
     assert callable(wte)
-    assert wte.dtype == config.dtype
+    assert wte.cfg.dtype == config.dtype == dtype
 
     # Get PRNG key
     prng_key = jax.random.PRNGKey(seed=0)
@@ -38,18 +41,25 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
     assert 'wte' in params
     assert isinstance(params['wte'], Array)
     assert params['wte'].dtype == jnp.dtype(config.dtype)
-    assert jnp.std(params['wte']).item() > 0.0
+    assert 0.0 < jnp.std(params['wte']).item() < 1.0
+
+    # Check device (should default to GPU if using jaxlib)
+    params = jax.device_put(x=params, device=device)
+    sample_leaf = jax.tree_util.tree_leaves(params)[0]
+    print(f"params.devices() = {sample_leaf.devices()}")
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 1024
+    ntoks = 16
     size_in = (nbatch, ntoks)
     # device = "cuda"
     input_ids = jax.random.randint(key=prng_key,
                                    shape=size_in,
                                    minval=0,
                                    maxval=vocab_size,
-                                   dtype=jnp.int32)
+                                   dtype=jnp.int32,
+                                   ).to_device(device)
+    print(f"input_ids.device = {input_ids.device}")
 
     # Test __call__
     batch_out = wte(params=params,
@@ -58,59 +68,49 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
     assert batch_out.dtype == jnp.dtype(config.dtype)
-    assert batch_out.shape == (nbatch, ntoks, wte.d_model)
+    assert batch_out.device == input_ids.device
+    assert batch_out.shape == (nbatch, ntoks, config.d_model)
     assert jnp.all(jnp.isfinite(batch_out))
 
     # Test embedding look-up
     embd0 = params['wte'][input_ids[0, 0]]
     assert jnp.allclose(batch_out[0, 0], embd0)
 
-    # # Set for inference
-    # for p in wte.parameters():
-    #     p.requires_grad = False
-    # wte.eval()
+    # Profile
 
-    # # Profile inference
-    # activities = [torch.profiler.ProfilerActivity.CPU,
-    #               torch.profiler.ProfilerActivity.CUDA]
-    # wait, warmup, active, repeat, buffer = 6, 6, 10, 2, 6
-    # its = (wait + warmup + active) * repeat + buffer
-    # schedule = torch.profiler.schedule(wait=wait, warmup=warmup,
-    #                                    active=active, repeat=repeat)
-    # iprofile = torch.profiler.profile(activities=activities,
-    #                                   schedule=schedule,
-    #                                   record_shapes=False,
-    #                                   with_stack=True)
-    # with iprofile as iprof:
-    #     with torch.amp.autocast(device_type=device,
-    #                             dtype=amp_dtype):
-    #         with torch.inference_mode():
-    #             for _ in range(its):
-    #                 with torch.profiler.record_function("mdl_inference"):
-    #                     _ = wte(batch_in)
-    #                 iprof.step()
-    # print(iprof.key_averages().table(sort_by="cpu_time_total",
-    #                                  row_limit=6))
-    # print(f"nits = {its}")
+    # Warmup (first jit call triggers compilation)
+    for _ in range(4):
+        batch_out = wte(params, input_ids)
+        batch_out.block_until_ready()
 
-    # # Profile GPU memory usage
-    # gpu_properties = torch.cuda.get_device_properties(0)
-    # gb_tot = gpu_properties.total_memory / 1024**3
-    # print(f"GPU type: {torch.cuda.get_device_name(0)}")
-    # print(f"GPU total VRAM = {gb_tot:.2f} GiB")
+    # Actual profiled runs
+    times = []
+    for _ in range(8):
+        t0 = time.perf_counter()
+        batch_out = wte(params, input_ids)
+        batch_out.block_until_ready()
+        times.append((time.perf_counter() - t0)*1000)
+    times = jnp.array(times)
+    print(f"et mean: {jnp.mean(times):.6f} ms")
+    print(f"et med : {jnp.median(times):.6f} ms")
+    print(f"et min : {jnp.min(times):.6f} ms")
 
-    # # See model GPU memory usage
-    # gb_buffs = sum(b.nelement()*b.element_size()
-    #                for b in wte.buffers()) / 1024**3
-    # gb_params = sum(p.nelement()*p.element_size()
-    #                 for p in wte.parameters()) / 1024**3
-    # gb_model = gb_buffs + gb_params
-    # print(f"GPU VRAM usage (buffs) : {gb_buffs:.2f} GiB / {gb_tot:.2f} GiB")
-    # print(f"GPU VRAM usage (params): {gb_params:.2f} GiB / {gb_tot:.2f} GiB")
-    # print(f"GPU VRAM usage (model) : {gb_model:.2f} GiB / {gb_tot:.2f} GiB")
+    # See memory usage
+    print_memory_stats(label="after")
 
-    # # See peak GPU memory usage
-    # gb_peak = torch.cuda.max_memory_allocated() / 1024**3
-    # use_percent = 100 * (gb_peak / gb_tot)
-    # print(f"Peak GPU Memory Usage: {gb_peak:.2f} GiB / {gb_tot:.2f} GiB")
-    # print(f"Peak GPU Memory Usage (%): {use_percent:.2f}%")
+
+# Function to see memory usage
+def print_memory_stats(label: str = "",
+                       ) -> None:
+    """Quick util fun to print memory stats."""
+    for device in jax.local_devices():
+        print(f"Memory stats ({label}) {device}:")
+        stats = device.memory_stats()
+        if stats is None:
+            print("  Not available...")
+            continue
+        peak = stats['peak_bytes_in_use'] / 1024**3
+        live = stats['bytes_in_use'] / 1024**3
+        lim = stats['bytes_limit'] / 1024**3
+        print(f"  Live:  {live:.2f}/{lim:.2f} GB ({100*peak/lim:.2f}%)")
+        print(f"  Peak:  {peak:.2f}/{lim:.2f} GB ({100*live/lim:.2f}%)")
