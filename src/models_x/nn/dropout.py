@@ -1,8 +1,8 @@
 """
 JAX functional equivalent of torch.nn.Dropout.
 
-Applies usual (element-wise) Dropout if training.
-Masks and scales to maintain the same expected value.
+If training, applies the usual Dropout (element-wise
+mask), and scales to maintain the same expected value.
 """
 
 from jax.random import bernoulli
@@ -18,6 +18,7 @@ def dropout(batch: Float[Array, "..."],
             deterministic: bool = True,
             ) -> Float[Array, "..."]:
     """
+    batch: JAX Array of any shape
     p: dropout probability in [0.0, 1.0)
        0.0 --> no dropout
     key: JAX PRNG key
