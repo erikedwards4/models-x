@@ -1,11 +1,11 @@
 """
 Pytest function for gpt2/gpt2_stem_wte.py.
 """
-import time
 import pytest
 import jax
 import jax.numpy as jnp
 from jaxtyping import Float, Array
+from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_stem_wte import GPT2StemWTE
@@ -19,6 +19,7 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
     """
     Pytest gpt2_stem_wte.GPT2StemWTE.
     """
+    # Start
     print("")
     device = jax.devices("gpu")[0]
     print_memory_stats(label="start")
@@ -76,26 +77,10 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
     embd0 = params['wte'][input_ids[0, 0]]
     assert jnp.allclose(batch_out[0, 0], embd0)
 
-    # Profile
-
-    # Warmup (first jit call triggers compilation)
-    for _ in range(4):
-        batch_out = wte(input_ids=input_ids,
-                        params=params)
-        batch_out.block_until_ready()
-
-    # Actual profiled runs
-    times = []
-    for _ in range(8):
-        t0 = time.perf_counter()
-        batch_out = wte(input_ids=input_ids,
-                        params=params)
-        batch_out.block_until_ready()
-        times.append((time.perf_counter() - t0)*1000)
-    times = jnp.array(times)
-    print(f"et mean: {jnp.mean(times):.6f} ms")
-    print(f"et med : {jnp.median(times):.6f} ms")
-    print(f"et min : {jnp.min(times):.6f} ms")
-
     # See memory usage
     print_memory_stats(label="after")
+
+    # Profile
+    profile_callable(fun=wte,
+                     batch_in=input_ids,
+                     params=params)

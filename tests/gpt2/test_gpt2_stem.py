@@ -1,11 +1,11 @@
 """
 Pytest function for gpt2/gpt2_stem.py.
 """
-import time
 import pytest
 import jax
 import jax.numpy as jnp
 from jaxtyping import Float, Array
+from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_stem import GPT2Stem
@@ -20,6 +20,7 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     """
     Pytest gpt2_stem.GPT2Stem.
     """
+    # Start
     print("")
     device = jax.devices("gpu")[0]
     print_memory_stats(label="start")
@@ -76,30 +77,12 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     assert batch_out.shape == (nbatch, ntoks, config.d_model)
     assert jnp.all(jnp.isfinite(batch_out))
 
-    # Profile
-
-    # Warmup (first jit call triggers compilation)
-    for _ in range(4):
-        batch_out = stem(input_ids=input_ids,
-                         params=params,
-                         dropout_key=None,
-                         deterministic=True)
-        batch_out.block_until_ready()
-
-    # Actual profiled runs
-    times = []
-    for _ in range(8):
-        t0 = time.perf_counter()
-        batch_out = stem(input_ids=input_ids,
-                         params=params,
-                         dropout_key=None,
-                         deterministic=True)
-        batch_out.block_until_ready()
-        times.append((time.perf_counter() - t0)*1000)
-    times = jnp.array(times)
-    print(f"et mean: {jnp.mean(times):.6f} ms")
-    print(f"et med : {jnp.median(times):.6f} ms")
-    print(f"et min : {jnp.min(times):.6f} ms")
-
     # See memory usage
     print_memory_stats(label="after")
+
+    # Profile
+    profile_callable(fun=stem,
+                     batch_in=input_ids,
+                     params=params,
+                     dropout_key=None,
+                     deterministic=True)

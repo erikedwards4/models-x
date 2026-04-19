@@ -20,7 +20,7 @@ def dropout(batch: Float[Array, "..."],
     """
     # Only if training and valid
     if not deterministic and isinstance(key, Array) and 0.0 < p < 0.999999:
-        # Keep probability
+        # Keep prob (p is p_drop)
         p_keep = 1.0 - p
 
         # Bernoulli mask
