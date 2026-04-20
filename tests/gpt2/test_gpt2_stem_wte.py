@@ -39,7 +39,7 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
     prng_key = jax.random.PRNGKey(seed=0)
 
     # Get params dict
-    params = wte.init_params(prng_key=prng_key)
+    params = wte.init_params(key=prng_key)
     assert 'wte' in params
     assert isinstance(params['wte'], Array)
     assert params['wte'].dtype == jnp.dtype(config.dtype)
@@ -63,8 +63,8 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
     print(f"input_ids.device = {input_ids.device}")
 
     # Test __call__
-    batch_out = wte(input_ids=input_ids,
-                    params=params)
+    batch_out = wte(params=params,
+                    input_ids=input_ids)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
@@ -82,5 +82,13 @@ def test_gpt2_stem_wte(vocab_size, d_model, dtype):
 
     # Profile
     profile_callable(fun=wte,
-                     batch_in=input_ids,
-                     params=params)
+                     n_runs=32,
+                     params=params,
+                     input_ids=input_ids)
+
+    # JAXPR
+    fun = partial(wte,
+                  params=params,
+                  input_ids=input_ids)
+    jaxpr = jax.make_jaxpr(fun=fun)()
+    print(f"JAXPR:\n{jaxpr}")

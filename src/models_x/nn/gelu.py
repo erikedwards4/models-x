@@ -1,35 +1,30 @@
 """
-JAX functional equivalent of torch.nn.GELU.
+JAX functional equivalent of torch.nn.GELU with approximate=False,
+which is called "gelu" in HuggingFace.
 
-Applies the usual GELU (element-wise rectification).
+This is the original GELU using the Gaussian error function (erf),
+not the "new_gelu" using the tanh approximation (see gelu_new.py).
 
 Note: the JAX compiler (XLA) does constant folding,
-so pi_2 = jnp.sqrt(2/jnp.pi) get computed only once,
-and the final number (0.7978...) is baked in. Thus,
-there is no performance gain to making a class GELU,
-and storing a self.pi_2 = ...
+so isqrt2 = -np.sqrt(0.5) gets computed only once,
+Thus, there is no performance gain to making a class,
+and storing a self.isqrt2 = ... Also, it is idiomatic
+JAX to use functions when no params dict.
+
+See gelu_new.py for reason to use numpy for constants.
 """
 
+import numpy as np
 from jax.scipy.special import erf
-import jax.numpy as jnp
 from jaxtyping import Float, Array
 
 __all__ = ["gelu"]
 
 
-def gelu(batch: Float[Array, "..."],
-         approximate: bool = True,
+def gelu(arr: Float[Array, "..."],
          ) -> Float[Array, "..."]:
     """
-    batch: JAX Array of any shape
-    approximate: if to use the tanh approximation
-                 True  --> use tanh
-                 False --> use erf
+    arr: JAX Float Array of any shape
     """
-    if approximate:
-        pi_2 = jnp.sqrt(2 / jnp.pi)
-        return 0.5 * batch * \
-            (1 + jnp.tanh(pi_2 * (batch + 0.044715*jnp.power(batch, 3))))
-
-    isqrt_2 = -1.0 / jnp.sqrt(2)
-    return 0.5 * batch * (1 + erf(batch * isqrt_2))
+    isqrt2 = -np.sqrt(0.5).astype(arr.dtype)
+    return 0.5 * arr * (1.0 + erf(isqrt2 * arr))  # ...

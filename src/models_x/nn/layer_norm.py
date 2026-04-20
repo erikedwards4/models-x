@@ -1,5 +1,8 @@
 """
 JAX class for ~equivalent to torch.nn.LayerNorm,
+but simplified to assume elementwise_affine=True
+(without elementwise_affine a layer norm is just
+a z-score along axis=-1, so rarely used as such).
 """
 
 from typing import Self
@@ -22,65 +25,58 @@ class LayerNorm():
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
 
     # Self attributes
-    in_features: int = field(default=1, metadata=metadata)
-    out_features: int = field(default=1, metadata=metadata)
+    normalized_shape: int = field(default=1, metadata=metadata)
+    eps: float = field(default=1e-5, metadata=metadata)
     bias: bool = field(default=True, metadata=metadata)
-    w_init: str = field(default="uniform", metadata=metadata)
-    b_init: str = field(default="zeros", metadata=metadata)
     dtype: DTypeLike = field(default=jnp.float32, metadata=metadata)
 
     def init_params(self: Self,
-                    prng_key: Array,
+                    _key: Array,
                     ) -> dict[str, Array]:
         """
         Initialize the parameters dict.
         """
-        # PRNG keys
-        k1, k2 = jax.random.split(prng_key)
+        # Shape
+        shape = (int(self.normalized_shape), )
 
-        # LayerNorm weight
-        w_shape = (int(self.in_features),
-                   int(self.out_features))
-        maxval = 1 / jnp.sqrt(self.in_features)
-        weight = jax.random.uniform(key=k1,
-                                    shape=w_shape,
-                                    minval=-maxval,
-                                    maxval=maxval,
-                                    dtype=self.dtype) \
-            if self.w_init == "uniform" else \
-            jnp.zeros(shape=w_shape,
-                      dtype=self.dtype)                 # Ci x Co
-        params = {'w': weight}
+        # LayerNorm weight (gamma)
+        gamma = jnp.ones(shape=shape,
+                         dtype=self.dtype)         # D
+        params = {'w': gamma}
 
-        # LayerNorm bias
+        # LayerNorm bias (beta)
         if self.bias:
-            b_shape = (int(self.out_features), )
-            maxval = 1 / jnp.sqrt(self.out_features)
-            bias = jax.random.uniform(key=k2,
-                                      shape=b_shape,
-                                      minval=-maxval,
-                                      maxval=maxval,
-                                      dtype=self.dtype) \
-                if self.b_init == "uniform" else \
-                jnp.zeros(shape=b_shape,
-                          dtype=self.dtype)             # Co
-            params['b'] = bias
+            beta = jnp.zeros(shape=shape,
+                             dtype=self.dtype)     # D
+            params['b'] = beta
 
         return params
 
     def __call__(self: Self,
-                 batch: Float[Array, "... Ci"],         # noqa: F722
                  params: dict[str, Array],
-                 ) -> Float[Array, "... Co"]:           # noqa: F722
+                 arr: Float[Array, "... D"],        # noqa: F722
+                 ) -> Float[Array, "... D"]:        # noqa: F722
         """
-        Ci = in_features (nchans_in)
-        Co = out_features (nchans_out)
+        D = normalized_shape (dim along axis=-1)
         """
-        # JAX handles the dot product across
-        # leading '...' dims automatically
-        batch_out = jnp.dot(batch, params['w'])         # ... x Co
+        # Zero mean over last dim
+        mean = jnp.mean(a=arr,
+                        axis=-1,
+                        keepdims=True)              # ... x 1
+        arr0 = arr - mean                           # ... x D
 
+        # Unit std over last dim
+        var = jnp.mean(a=arr0**2,
+                       axis=-1,
+                       keepdims=True)               # ... x 1
+        istd = jax.lax.rsqrt(var + self.eps)        # ... x 1
+        arr1 = arr0 * istd                          # ... x D
+
+        # Scale by weight (gamma)
+        arr_out = arr1 * params['w']                # ... x D
+
+        # Shift by bias (beta)
         if self.bias:
-            batch_out = batch_out + params['b']         # ... x Co
+            arr_out = arr_out + params['b']         # ... x D
 
-        return batch_out
+        return arr_out                              # ... x D

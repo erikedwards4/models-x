@@ -1,6 +1,7 @@
 """
 Pytest function for nn/embedding.py.
 """
+# from functools import partial
 import pytest
 import jax
 import jax.numpy as jnp
@@ -38,7 +39,7 @@ def test_embedding(num_embeddings, embedding_dim,
     prng_key = jax.random.PRNGKey(seed=0)
 
     # Get params dict
-    params = mdl.init_params(prng_key=prng_key)
+    params = mdl.init_params(key=prng_key)
     assert 'w' in params
     assert isinstance(params['w'], Array)
     assert params['w'].dtype == dtype
@@ -62,8 +63,8 @@ def test_embedding(num_embeddings, embedding_dim,
     print(f"input_ids.device = {input_ids.device}")
 
     # Test __call__
-    batch_out = mdl(input_ids=input_ids,
-                    params=params)
+    batch_out = mdl(params=params,
+                    input_ids=input_ids)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
@@ -81,5 +82,13 @@ def test_embedding(num_embeddings, embedding_dim,
 
     # Profile
     profile_callable(fun=mdl,
-                     batch_in=input_ids,
-                     params=params)
+                     n_runs=32,
+                     params=params,
+                     input_ids=input_ids)
+
+    # JAXPR
+    # fun = partial(mdl,
+    #               params=params,
+    #               input_ids=input_ids)
+    # jaxpr = jax.make_jaxpr(fun=fun)()
+    # print(f"JAXPR:\n{jaxpr}")

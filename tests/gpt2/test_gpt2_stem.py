@@ -82,7 +82,13 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
 
     # Profile
     profile_callable(fun=stem,
-                     batch_in=input_ids,
+                     n_runs=32,
                      params=params,
-                     dropout_key=None,
-                     deterministic=True)
+                     input_ids=input_ids)
+
+    # JAXPR
+    fun = partial(stem,
+                  params=params,
+                  input_ids=input_ids)
+    jaxpr = jax.make_jaxpr(fun=fun)()
+    print(f"JAXPR:\n{jaxpr}")

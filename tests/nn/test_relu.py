@@ -1,6 +1,7 @@
 """
 Pytest function for nn/relu.py.
 """
+from functools import partial
 import jax
 import jax.numpy as jnp
 # from jax.nn import relu
@@ -46,7 +47,10 @@ def test_relu():
 
     # Profile
     profile_callable(fun=relu,
-                     batch_in=batch_in)
+                     n_runs=64,
+                     arr=batch_in)
 
     # JAXPR
-    print(jax.make_jaxpr(relu)(batch_in))
+    fun = partial(relu, arr=batch_in)
+    jaxpr = jax.make_jaxpr(fun=fun)()
+    print(f"JAXPR:\n{jaxpr}")

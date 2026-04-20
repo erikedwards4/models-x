@@ -1,6 +1,7 @@
 """
 Pytest function for nn/linear.py.
 """
+from functools import partial
 import pytest
 import jax
 import jax.numpy as jnp
@@ -42,7 +43,7 @@ def test_linear(in_features, out_features, bias,
     prng_key = jax.random.PRNGKey(seed=0)
 
     # Get params dict
-    params = mdl.init_params(prng_key=prng_key)
+    params = mdl.init_params(key=prng_key)
     assert 'w' in params
     assert isinstance(params['w'], Array)
     assert params['w'].dtype == dtype
@@ -60,7 +61,7 @@ def test_linear(in_features, out_features, bias,
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 1024
+    ntoks = 16
     size_in = (nbatch, ntoks, in_features)
     batch_in = jax.random.normal(key=prng_key,
                                  shape=size_in,
@@ -69,8 +70,8 @@ def test_linear(in_features, out_features, bias,
     print(f"batch_in.device = {batch_in.device}")
 
     # Test __call__
-    batch_out = mdl(batch=batch_in,
-                    params=params)
+    batch_out = mdl(params=params,
+                    arr=batch_in)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
@@ -84,5 +85,13 @@ def test_linear(in_features, out_features, bias,
 
     # Profile
     profile_callable(fun=mdl,
-                     batch_in=batch_in,
-                     params=params)
+                     n_runs=32,
+                     params=params,
+                     arr=batch_in)
+
+    # JAXPR
+    fun = partial(mdl,
+                  params=params,
+                  arr=batch_in)
+    jaxpr = jax.make_jaxpr(fun=fun)()
+    print(f"JAXPR:\n{jaxpr}")

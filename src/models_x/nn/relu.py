@@ -2,6 +2,8 @@
 JAX functional equivalent of torch.nn.ReLU.
 
 Applies the usual ReLU (element-wise rectification).
+Note: slightly faster than built-in jax.nn.relu, but
+use jax.nn.relu if concerned about the derivative at 0.
 """
 
 import jax.numpy as jnp
@@ -10,9 +12,9 @@ from jaxtyping import Float, Array
 __all__ = ["relu"]
 
 
-def relu(batch: Float[Array, "..."],
+def relu(arr: Float[Array, "..."],
          ) -> Float[Array, "..."]:
     """
-    batch: JAX Array of any shape
+    arr: JAX Float Array of any shape
     """
-    return jnp.maximum(0, batch)
+    return jnp.maximum(0.0, arr)        # ...

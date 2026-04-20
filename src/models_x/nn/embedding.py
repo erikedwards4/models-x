@@ -30,7 +30,7 @@ class Embedding():
     dtype: DTypeLike = field(default=jnp.float32, metadata=metadata)
 
     def init_params(self: Self,
-                    prng_key: Array,
+                    key: Array,
                     ) -> dict[str, Array]:
         """
         Initialize the parameters dict.
@@ -41,17 +41,17 @@ class Embedding():
         std = float(self.init_std)
 
         # Embedding weights
-        weight = jax.random.normal(key=prng_key,
+        weight = jax.random.normal(key=key,
                                    shape=shape,
                                    dtype=self.dtype,
-                                   ) * std          # N x D
+                                   ) * std              # N x D
 
         return {'w': weight}
 
     def __call__(self: Self,
-                 input_ids: Int[Array, "..."],      # noqa: F722
                  params: dict[str, Array],
-                 ) -> Float[Array, "... D"]:        # noqa: F722
+                 input_ids: Int[Array, "..."],          # noqa: F722
+                 ) -> Float[Array, "... D"]:            # noqa: F722
         """
         D = embedding_dim (len of each embedding vec)
         """
@@ -62,4 +62,4 @@ class Embedding():
                         mode='fill',
                         fill_value=0.0,
                         unique_indices=False,
-                        indices_are_sorted=False)   # ... x D
+                        indices_are_sorted=False)       # ... x D

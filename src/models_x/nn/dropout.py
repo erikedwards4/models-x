@@ -11,14 +11,14 @@ from jaxtyping import Float, Array
 __all__ = ["dropout"]
 
 
-def dropout(batch: Float[Array, "..."],
+def dropout(arr: Float[Array, "..."],
             *,
             p: float = 0.0,
             key: Array | None = None,
             deterministic: bool = True,
             ) -> Float[Array, "..."]:
     """
-    batch: JAX Array of any shape
+    arr: JAX Array of any shape
     p: dropout probability in [0.0, 1.0)
        0.0 --> no dropout
     key: JAX PRNG key
@@ -35,9 +35,9 @@ def dropout(batch: Float[Array, "..."],
         # Bernoulli mask
         mask = bernoulli(key=key,
                          p=p_keep,
-                         shape=batch.shape)
+                         shape=arr.shape)       # ...
 
         # Apply mask and scale
-        batch = (batch * mask) / p_keep
+        arr = (arr * mask) / p_keep             # ...
 
-    return batch
+    return arr                                  # ...

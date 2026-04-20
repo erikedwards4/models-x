@@ -2,9 +2,9 @@
 Utility function to profile a Callable.
 
 This is meant for a function (fun) that takes
-a JAX Array as input (batch_in), along with an
+a JAX Array as input (arr), along with an
 optional list of kwargs, and gives a similar
-JAX Array as output (batch_out).
+JAX Array as output (arr_out).
 
 The fun can be an instance of a class that has
 a __call__ method (and is therefore a Callable).
@@ -15,37 +15,41 @@ Usually only used during testing and profiling.
 from typing import Any, Callable
 import time
 import jax.numpy as jnp
-from jaxtyping import Array
 
 __all__ = ["profile_callable"]
 
 
 def profile_callable(fun: Callable,
                      *,
-                     batch_in: Array,
+                     n_runs: int,
                      **kwargs: Any,
                      ) -> None:
     """
     Util function to profile a Callable,
-    using batch_in and kwargs as inputs.
+    using arr and kwargs as inputs.
 
     The fun must support:
-    batch_out = fun(batch_in, **kwargs);
+    arr_out = fun(**kwargs);
+    (so all positional args must allow kwargs entry)
+
+    Does n_runs//4 warm-up runs, and then
+    the rest of n_runs to get the stats.
     """
     # Check
     assert callable(fun)
 
+    # Profile
+    times: list[float] = []
     # Warmup (first jit call triggers compilation)
-    for _ in range(6):
-        batch_out = fun(batch_in, **kwargs)
-        batch_out.block_until_ready()
+    for _ in range(n_runs//4):
+        arr_out = fun(**kwargs)
+        arr_out.block_until_ready()
 
     # Actual profiled runs
-    times: list[float] = []
-    for _ in range(10):
+    for _ in range(n_runs-n_runs//4):
         t0 = time.perf_counter()
-        batch_out = fun(batch_in, **kwargs)
-        batch_out.block_until_ready()
+        arr_out = fun(**kwargs)
+        arr_out.block_until_ready()
         times.append((time.perf_counter() - t0) * 1000)
 
     # Print

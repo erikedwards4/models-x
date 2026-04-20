@@ -27,7 +27,7 @@ class GPT2StemWPE():
     cfg: GPT2Config = field(metadata=metadata)
 
     def init_params(self: Self,
-                    prng_key: Array,
+                    key: Array,
                     ) -> dict[str, Array]:
         """
         Initialize the parameters dict.
@@ -40,7 +40,7 @@ class GPT2StemWPE():
         std = float(self.cfg.init_std)
 
         # Embedding weights
-        wpe = jax.random.normal(key=prng_key,
+        wpe = jax.random.normal(key=key,
                                 shape=shape,
                                 dtype=self.cfg.dtype,
                                 ) * std             # P x D
@@ -48,8 +48,8 @@ class GPT2StemWPE():
         return {'wpe': wpe}
 
     def __call__(self: Self,
-                 position_ids: Int[Array, "T"],     # noqa: F722
                  params: dict[str, Array],
+                 position_ids: Int[Array, "T"],     # noqa: F722
                  ) -> Float[Array, "T D"]:          # noqa: F722
         """
         T = ntoks (num tokens, input seq len)

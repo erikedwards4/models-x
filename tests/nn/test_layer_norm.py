@@ -1,6 +1,7 @@
 """
 Pytest function for nn/layer_norm.py.
 """
+from functools import partial
 import pytest
 import jax
 import jax.numpy as jnp
@@ -11,14 +12,11 @@ from models_x.nn.layer_norm import LayerNorm
 
 
 # layer_norm.LayerNorm
-@pytest.mark.parametrize("in_features", (768, ))
-@pytest.mark.parametrize("out_features", (32, ))
+@pytest.mark.parametrize("normalized_shape", (768, ))
+@pytest.mark.parametrize("eps", (1e-5, ))
 @pytest.mark.parametrize("bias", (True, ))
-@pytest.mark.parametrize("w_init", ('uniform', ))
-@pytest.mark.parametrize("b_init", ('zeros', ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_layer_norm(in_features, out_features, bias,
-                w_init, b_init, dtype):
+def test_layer_norm(normalized_shape, eps, bias, dtype):
     """
     Pytest layer_norm.LayerNorm.
     """
@@ -28,12 +26,10 @@ def test_layer_norm(in_features, out_features, bias,
     print_memory_stats(label="start")
 
     # Get instance
-    mdl = LayerNorm(in_features=in_features,
-                 out_features=out_features,
-                 bias=bias,
-                 w_init=w_init,
-                 b_init=b_init,
-                 dtype=dtype)
+    mdl = LayerNorm(normalized_shape=normalized_shape,
+                    eps=eps,
+                    bias=bias,
+                    dtype=dtype)
     assert isinstance(mdl, LayerNorm)
     assert callable(mdl)
     assert mdl.dtype == dtype
@@ -42,7 +38,7 @@ def test_layer_norm(in_features, out_features, bias,
     prng_key = jax.random.PRNGKey(seed=0)
 
     # Get params dict
-    params = mdl.init_params(prng_key=prng_key)
+    params = mdl.init_params(prng_key)
     assert 'w' in params
     assert isinstance(params['w'], Array)
     assert params['w'].dtype == dtype
@@ -61,7 +57,7 @@ def test_layer_norm(in_features, out_features, bias,
     # Make input data
     nbatch = 4          # micro-batch size
     ntoks = 1024
-    size_in = (nbatch, ntoks, in_features)
+    size_in = (nbatch, ntoks, normalized_shape)
     batch_in = jax.random.normal(key=prng_key,
                                  shape=size_in,
                                  dtype=dtype,
@@ -69,14 +65,14 @@ def test_layer_norm(in_features, out_features, bias,
     print(f"batch_in.device = {batch_in.device}")
 
     # Test __call__
-    batch_out = mdl(batch=batch_in,
-                    params=params)
+    batch_out = mdl(params=params,
+                    arr=batch_in)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
     assert batch_out.dtype == batch_in.dtype == dtype
     assert batch_out.device == batch_in.device
-    assert batch_out.shape == (nbatch, ntoks, out_features)
+    assert batch_out.shape == batch_in.shape
     assert jnp.all(jnp.isfinite(batch_out))
 
     # See memory usage
@@ -84,5 +80,13 @@ def test_layer_norm(in_features, out_features, bias,
 
     # Profile
     profile_callable(fun=mdl,
-                     batch_in=batch_in,
-                     params=params)
+                     n_runs=64,
+                     params=params,
+                     arr=batch_in)
+
+    # JAXPR
+    fun = partial(mdl,
+                  params=params,
+                  arr=batch_in)
+    jaxpr = jax.make_jaxpr(fun=fun)()
+    print(f"JAXPR:\n{jaxpr}")

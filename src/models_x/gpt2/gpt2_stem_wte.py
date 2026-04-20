@@ -41,7 +41,7 @@ class GPT2StemWTE():
     #     self.dtype: jax.typing.DTypeLike = config.dtype
 
     def init_params(self: Self,
-                    prng_key: Array,
+                    key: Array,
                     ) -> dict[str, Array]:
         """
         Initialize the parameters dict.
@@ -54,7 +54,7 @@ class GPT2StemWTE():
         std = float(self.cfg.init_std)
 
         # Embedding weights
-        wte = jax.random.normal(key=prng_key,
+        wte = jax.random.normal(key=key,
                                 shape=shape,
                                 dtype=self.cfg.dtype,
                                 ) * std             # V x D
@@ -62,8 +62,8 @@ class GPT2StemWTE():
         return {'wte': wte}
 
     def __call__(self: Self,
-                 input_ids: Int[Array, "B T"],      # noqa: F722
                  params: dict[str, Array],
+                 input_ids: Int[Array, "B T"],      # noqa: F722
                  ) -> Float[Array, "B T D"]:        # noqa: F722
         """
         B = batch_size (or micro-batch size)
