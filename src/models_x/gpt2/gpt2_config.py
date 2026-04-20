@@ -4,6 +4,7 @@ Config for GPT-2 in JAX.
 This uses Python Standard Library dataclasses
 """
 
+from typing import Self, Any
 from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 from jax.typing import DTypeLike
@@ -18,7 +19,7 @@ class GPT2Config():
     """
     Configs for JAX GPT-2 model.
     """
-    # Metadata for jax.tree_util setup
+    # Metadata (for jax.tree_util setup)
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
 
     # General
@@ -42,7 +43,7 @@ class GPT2Config():
     # Helpers for derived properties
     @property
     def d_hid(self: Self) -> int:
-        """Setd d_hid for the GTP2BlockMLP."""
+        """Sets d_hid for the GTP2BlockMLP."""
         return 4 * self.d_model
 
     @property
