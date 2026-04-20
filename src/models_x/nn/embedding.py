@@ -1,8 +1,6 @@
 """
-GPT-2 WTE (Word Token Embedding) part of the stem.
-
-This is a look-up from integer token IDs in [0, vocab_size)
-to float embedding vectors with length d_model.
+JAX class for ~equivalent to torch.nn.Embedding,
+but simplified (no max_norm, sparse, etc.).
 """
 
 from typing import Self

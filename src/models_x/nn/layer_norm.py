@@ -1,5 +1,5 @@
 """
-JAX class for ~equivalent to torch.nn.Linear,
+JAX class for ~equivalent to torch.nn.LayerNorm,
 """
 
 from typing import Self
@@ -9,14 +9,14 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Float, Array, DTypeLike
 
-__all__ = ["Linear"]
+__all__ = ["LayerNorm"]
 
 
 @register_dataclass
 @dataclass
-class Linear():
+class LayerNorm():
     """
-    JAX dataclass equivalent of torch.nn.Linear.
+    JAX dataclass equivalent of torch.nn.LayerNorm.
     """
     # Metadata (for jax.tree_util setup)
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
@@ -38,7 +38,7 @@ class Linear():
         # PRNG keys
         k1, k2 = jax.random.split(prng_key)
 
-        # Linear weight
+        # LayerNorm weight
         w_shape = (int(self.in_features),
                    int(self.out_features))
         maxval = 1 / jnp.sqrt(self.in_features)
@@ -52,7 +52,7 @@ class Linear():
                       dtype=self.dtype)                 # Ci x Co
         params = {'w': weight}
 
-        # Linear bias
+        # LayerNorm bias
         if self.bias:
             b_shape = (int(self.out_features), )
             maxval = 1 / jnp.sqrt(self.out_features)

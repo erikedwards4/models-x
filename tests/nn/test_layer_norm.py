@@ -1,0 +1,88 @@
+"""
+Pytest function for nn/layer_norm.py.
+"""
+import pytest
+import jax
+import jax.numpy as jnp
+from jaxtyping import Float, Array
+from models_x.utils.profile_callable import profile_callable
+from models_x.utils.print_memory_stats import print_memory_stats
+from models_x.nn.layer_norm import LayerNorm
+
+
+# layer_norm.LayerNorm
+@pytest.mark.parametrize("in_features", (768, ))
+@pytest.mark.parametrize("out_features", (32, ))
+@pytest.mark.parametrize("bias", (True, ))
+@pytest.mark.parametrize("w_init", ('uniform', ))
+@pytest.mark.parametrize("b_init", ('zeros', ))
+@pytest.mark.parametrize("dtype", (jnp.float32, ))
+def test_layer_norm(in_features, out_features, bias,
+                w_init, b_init, dtype):
+    """
+    Pytest layer_norm.LayerNorm.
+    """
+    # Start
+    print("")
+    device = jax.devices("gpu")[0]
+    print_memory_stats(label="start")
+
+    # Get instance
+    mdl = LayerNorm(in_features=in_features,
+                 out_features=out_features,
+                 bias=bias,
+                 w_init=w_init,
+                 b_init=b_init,
+                 dtype=dtype)
+    assert isinstance(mdl, LayerNorm)
+    assert callable(mdl)
+    assert mdl.dtype == dtype
+
+    # Get PRNG key
+    prng_key = jax.random.PRNGKey(seed=0)
+
+    # Get params dict
+    params = mdl.init_params(prng_key=prng_key)
+    assert 'w' in params
+    assert isinstance(params['w'], Array)
+    assert params['w'].dtype == dtype
+    assert 0.0 <= jnp.std(params['w']).item() < 100.0
+    if bias:
+        assert 'b' in params
+        assert isinstance(params['b'], Array)
+        assert params['b'].dtype == dtype
+        assert 0.0 <= jnp.std(params['b']).item() < 100.0
+
+    # Check device (should default to GPU if using jaxlib)
+    params = jax.device_put(x=params, device=device)
+    sample_leaf = jax.tree_util.tree_leaves(params)[0]
+    print(f"params.devices() = {sample_leaf.devices()}")
+
+    # Make input data
+    nbatch = 4          # micro-batch size
+    ntoks = 1024
+    size_in = (nbatch, ntoks, in_features)
+    batch_in = jax.random.normal(key=prng_key,
+                                 shape=size_in,
+                                 dtype=dtype,
+                                 ).to_device(device)
+    print(f"batch_in.device = {batch_in.device}")
+
+    # Test __call__
+    batch_out = mdl(batch=batch_in,
+                    params=params)
+    print(f"batch_out.dtype = {batch_out.dtype}")
+    print(f"batch_out.shape = {batch_out.shape}")
+    assert isinstance(batch_out, Float[jnp.ndarray, "..."])
+    assert batch_out.dtype == batch_in.dtype == dtype
+    assert batch_out.device == batch_in.device
+    assert batch_out.shape == (nbatch, ntoks, out_features)
+    assert jnp.all(jnp.isfinite(batch_out))
+
+    # See memory usage
+    print_memory_stats(label="after")
+
+    # Profile
+    profile_callable(fun=mdl,
+                     batch_in=batch_in,
+                     params=params)
