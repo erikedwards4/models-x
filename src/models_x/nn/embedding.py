@@ -48,7 +48,7 @@ class Embedding():
                                    dtype=self.dtype,
                                    ) * std          # N x D
 
-        return {'weight': weight}
+        return {'w': weight}
 
     def __call__(self: Self,
                  input_ids: Int[Array, "..."],      # noqa: F722
@@ -58,7 +58,7 @@ class Embedding():
         D = embedding_dim (len of each embedding vec)
         """
         # torch.nn.Embedding lookup --> jnp.take
-        return jnp.take(a=params['weight'],
+        return jnp.take(a=params['w'],
                         indices=input_ids,
                         axis=0,
                         mode='fill',

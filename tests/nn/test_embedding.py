@@ -39,10 +39,10 @@ def test_embedding(num_embeddings, embedding_dim,
 
     # Get params dict
     params = mdl.init_params(prng_key=prng_key)
-    assert 'weight' in params
-    assert isinstance(params['weight'], Array)
-    assert params['weight'].dtype == jnp.dtype(dtype)
-    assert 0.0 < jnp.std(params['weight']).item() < 1.0
+    assert 'w' in params
+    assert isinstance(params['w'], Array)
+    assert params['w'].dtype == dtype
+    assert 0.0 < jnp.std(params['w']).item() < 1.0
 
     # Check device (should default to GPU if using jaxlib)
     params = jax.device_put(x=params, device=device)
@@ -67,13 +67,13 @@ def test_embedding(num_embeddings, embedding_dim,
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
-    assert batch_out.dtype == jnp.dtype(dtype)
+    assert batch_out.dtype == dtype
     assert batch_out.device == input_ids.device
     assert batch_out.shape == (nbatch, ntoks, embedding_dim)
     assert jnp.all(jnp.isfinite(batch_out))
 
     # Test embedding look-up
-    embd0 = params['weight'][input_ids[0, 0]]
+    embd0 = params['w'][input_ids[0, 0]]
     assert jnp.allclose(batch_out[0, 0], embd0)
 
     # See memory usage
