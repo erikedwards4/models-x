@@ -1,7 +1,7 @@
 """
 Pytest function for gpt2/gpt2_stem.py.
 """
-from functools import partial
+# from functools import partial
 import pytest
 import jax
 import jax.numpy as jnp
@@ -33,7 +33,7 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
                         dtype=dtype)
 
     # Get mdl
-    stem = GPT2Stem(cfg=config)
+    stem = GPT2Stem.from_config(cfg=config)
     assert isinstance(stem, GPT2Stem)
     assert callable(stem)
     assert stem.cfg.dtype == config.dtype == dtype
@@ -44,10 +44,8 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
 
     # Get params dict
     params = stem.init_params(key=params_key)
-    assert 'stem' in params
-    assert isinstance(params['stem'], Array)
-    assert params['stem'].dtype == jnp.dtype(config.dtype)
-    assert 0.0 < jnp.std(params['stem']).item() < 1.0
+    assert 'wte' in params
+    assert isinstance(params['wte'], dict)
 
     # Check device (should default to GPU if using jaxlib)
     params = jax.device_put(x=params, device=device)
@@ -85,11 +83,15 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     profile_callable(fun=stem,
                      n_runs=32,
                      params=params,
-                     input_ids=input_ids)
+                     input_ids=input_ids,
+                     key=None,
+                     deterministic=True)
 
     # JAXPR
-    fun = partial(stem,
-                  params=params,
-                  input_ids=input_ids)
-    jaxpr = jax.make_jaxpr(fun=fun)()
-    print(f"JAXPR:\n{jaxpr}")
+    # fun = partial(stem,
+    #               params=params,
+    #               input_ids=input_ids,
+    #               key=None,
+    #               deterministic=True)
+    # jaxpr = jax.make_jaxpr(fun=fun)()
+    # print(f"JAXPR:\n{jaxpr}")

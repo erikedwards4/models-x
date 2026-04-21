@@ -29,24 +29,34 @@ class GPT2Stem():
     wte: Embedding = field(metadata=metadata)
     wpe: Embedding = field(metadata=metadata)
 
-    def __post_init__(self: Self,
-                      ) -> None:
+    @classmethod
+    def from_config(cls: type[Self],
+                    cfg: GPT2Config,
+                    **kwargs: Any,
+                    ) -> Self:
         """
-        Standard dataclass method, called automatically.
+        Instantiate from_config with optional kwargs to override.
         """
+        # Config attributes
+        vocab_size = int(kwargs.get('vocab_size', cfg.vocab_size))
+        n_positions = int(kwargs.get('n_positions', cfg.n_positions))
+        d_model = int(kwargs.get('d_model', cfg.d_model))
+        init_std = float(kwargs.get('init_std', cfg.init_std))
+        dtype = jnp.dtype(kwargs.get('dtype', cfg.dtype))
+
         # Word Token Embedding (WTE)
-        wte = Embedding(num_embeddings=self.cfg.vocab_size,
-                        embedding_dim=self.cfg.d_model,
-                        init_std=self.cfg.init_std,
-                        dtype=self.cfg.dtype)
-        object.__setattr__(self, "wte", wte)
+        wte = Embedding(num_embeddings=vocab_size,
+                        embedding_dim=d_model,
+                        init_std=init_std,
+                        dtype=dtype)
 
         # Word Position Embedding (WPE)
-        wpe = Embedding(num_embeddings=self.cfg.n_positions,
-                        embedding_dim=self.cfg.d_model,
-                        init_std=self.cfg.init_std,
-                        dtype=self.cfg.dtype)
-        object.__setattr__(self, "wpe", wpe)
+        wpe = Embedding(num_embeddings=n_positions,
+                        embedding_dim=d_model,
+                        init_std=init_std,
+                        dtype=dtype)
+
+        return cls(cfg=cfg, wte=wte, wpe=wpe)
 
     def init_params(self: Self,
                     key: Array,
@@ -57,12 +67,9 @@ class GPT2Stem():
         # PRNG keys
         key1, key2 = jax.random.split(key)
 
-        # WTE
-        params_wte = self.wte.init_params(key1)
-        params_wpe = self.wte.init_params(key2)
-
-        return {'wte': params_wte,
-                'wpe': params_wpe}
+        # Params dict
+        return {'wte': self.wte.init_params(key1),
+                'wpe': self.wpe.init_params(key2)}
 
     def __call__(self: Self,
                  params: dict[str, Any],
