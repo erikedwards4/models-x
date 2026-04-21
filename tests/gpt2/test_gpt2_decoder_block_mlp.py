@@ -4,7 +4,7 @@ Pytest function for gpt2/gpt2_decoder_block_mlp.py.
 import pytest
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Array
+from jaxtyping import Float
 from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
@@ -13,9 +13,8 @@ from models_x.gpt2.gpt2_decoder_block_mlp import GPT2DecoderBlockMLP
 
 # gpt2_decoder_block_mlp.GPT2DecoderBlockMLP
 @pytest.mark.parametrize("d_model", (768, ))
-@pytest.mark.parametrize("attn_implementation", ("sdpa", ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2_decoder_block_mlp(d_model, attn_implementation, dtype):
+def test_gpt2_decoder_block_mlp(d_model, dtype):
     """
     Pytest gpt2_decoder_block_mlp.GPT2DecoderBlockMLP.
     """
@@ -26,23 +25,22 @@ def test_gpt2_decoder_block_mlp(d_model, attn_implementation, dtype):
 
     # Get config
     cfg = GPT2Config(d_model=d_model,
-                     attn_implementation=attn_implementation,
                      dtype=dtype)
 
     # Get mdl
-    blk = GPT2DecoderBlockMLP.from_config(cfg=cfg)
-    assert isinstance(blk, GPT2DecoderBlockMLP)
-    assert callable(blk)
-    assert blk.cfg.dtype == cfg.dtype == dtype
+    mlp = GPT2DecoderBlockMLP.from_config(cfg=cfg)
+    assert isinstance(mlp, GPT2DecoderBlockMLP)
+    assert callable(mlp)
+    assert mlp.cfg.dtype == cfg.dtype == dtype
 
     # Get PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
     params_key, dropout_key = jax.random.split(key=prng_key, num=2)
 
     # Get params dict
-    params = blk.init_params(key=params_key)
-    assert 'wte' in params
-    assert isinstance(params['wte'], dict)
+    params = mlp.init_params(key=params_key)
+    assert 'c_proj' in params
+    assert isinstance(params['c_proj'], dict)
 
     # Check device (should default to GPU if using jaxlib)
     params = jax.device_put(x=params, device=device)
@@ -59,7 +57,7 @@ def test_gpt2_decoder_block_mlp(d_model, attn_implementation, dtype):
                                  ).to_device(device)
 
     # Test __call__
-    batch_out = blk(params=params,
+    batch_out = mlp(params=params,
                     arr=batch_in,
                     key=dropout_key,
                     deterministic=False)
@@ -72,9 +70,9 @@ def test_gpt2_decoder_block_mlp(d_model, attn_implementation, dtype):
     assert jnp.all(jnp.isfinite(batch_out))
 
     # JIT compile
-    blk_jit = jax.jit(blk,
+    mlp_jit = jax.jit(mlp,
                       static_argnames=("deterministic",))
-    batch_out = blk_jit(params=params,
+    batch_out = mlp_jit(params=params,
                         arr=batch_in,
                         key=dropout_key,
                         deterministic=False)
@@ -83,9 +81,9 @@ def test_gpt2_decoder_block_mlp(d_model, attn_implementation, dtype):
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=blk_jit,
+    profile_callable(fun=mlp_jit,
                      n_runs=32,
                      params=params,
                      arr=batch_in,
-                     key=None,
+                     key=dropout_key,
                      deterministic=True)

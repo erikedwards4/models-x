@@ -47,14 +47,16 @@ def profile_callable(fun: Callable,
         arr_out.block_until_ready()
 
     # Actual profiled runs
+    times.append(time.perf_counter())
     for _ in range(n_runs-n_runs//3):
-        t0 = time.perf_counter()
         arr_out = fun(**kwargs)
         arr_out.block_until_ready()
-        times.append((time.perf_counter() - t0) * 1000)
+        times.append(time.perf_counter())
 
     # Print
+    times = [1000*(times[t]-times[t-1])
+             for t in range(2, len(times))]
     times_arr = jnp.array(times)
-    print(f"et mean: {jnp.mean(times_arr):.6f} ms")
-    print(f"et med : {jnp.median(times_arr):.6f} ms")
-    print(f"et min : {jnp.min(times_arr):.6f} ms")
+    print(f"et avg: {jnp.mean(times_arr):.6f} ms")
+    print(f"et med: {jnp.median(times_arr):.6f} ms")
+    print(f"et min: {jnp.min(times_arr):.6f} ms")
