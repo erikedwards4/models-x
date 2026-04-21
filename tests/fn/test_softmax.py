@@ -1,22 +1,22 @@
 """
-Pytest function for nn/dropout.py.
+Pytest function for nn/softmax.py.
 """
-# from functools import partial
+from functools import partial
 import pytest
 import jax
 import jax.numpy as jnp
+# from jax.nn import softmax
 from jaxtyping import Float
 from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
-from models_x.nn.dropout import dropout
+from models_x.fn.softmax import softmax
 
 
-# dropout.dropout
-@pytest.mark.parametrize("p", (0.1, ))
-@pytest.mark.parametrize("deterministic", (False, ))
-def test_dropout(p, deterministic):
+# softmax.softmax
+@pytest.mark.parametrize("axis", (-1, ))
+def test_softmax(axis):
     """
-    Pytest dropout.dropout.
+    Pytest softmax.softmax.
     """
     # Start
     print("")
@@ -36,10 +36,7 @@ def test_dropout(p, deterministic):
                                  ).to_device(device)
 
     # Test __call__
-    batch_out = dropout(arr=batch_in,
-                        p=p,
-                        key=prng_key,
-                        deterministic=deterministic)
+    batch_out = softmax(arr=batch_in, axis=axis)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
@@ -47,28 +44,17 @@ def test_dropout(p, deterministic):
     assert batch_out.device == batch_in.device
     assert batch_out.shape == batch_in.shape
     assert jnp.all(jnp.isfinite(batch_out))
-    if deterministic or not 0.0 < p < 0.999999:
-        assert jnp.allclose(a=batch_in,
-                            b=batch_out,
-                            rtol=1e-7,
-                            atol=1e-7)
 
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=dropout,
-                     n_runs=32,
+    profile_callable(fun=softmax,
+                     n_runs=64,
                      arr=batch_in,
-                     p=p,
-                     key=prng_key,
-                     deterministic=deterministic)
+                     axis=axis)
 
     # JAXPR
-    # fun = partial(dropout,
-    #               arr=batch_in,
-    #               p=p,
-    #               key=prng_key,
-    #               deterministic=deterministic)
-    # jaxpr = jax.make_jaxpr(fun=fun)()
-    # print(f"JAXPR:\n{jaxpr}")
+    fun = partial(softmax, arr=batch_in, axis=axis)
+    jaxpr = jax.make_jaxpr(fun=fun)()
+    print(f"JAXPR:\n{jaxpr}")

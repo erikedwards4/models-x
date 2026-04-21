@@ -32,7 +32,7 @@ def profile_callable(fun: Callable,
     arr_out = fun(**kwargs);
     (so all positional args must allow kwargs entry)
 
-    Does n_runs//4 warm-up runs, and then
+    Does n_runs//3 warm-up runs, and then
     the rest of n_runs to get the stats.
     """
     # Check
@@ -40,20 +40,21 @@ def profile_callable(fun: Callable,
 
     # Profile
     times: list[float] = []
+
     # Warmup (first jit call triggers compilation)
-    for _ in range(n_runs//4):
+    for _ in range(n_runs//3):
         arr_out = fun(**kwargs)
         arr_out.block_until_ready()
 
     # Actual profiled runs
-    for _ in range(n_runs-n_runs//4):
+    for _ in range(n_runs-n_runs//3):
         t0 = time.perf_counter()
         arr_out = fun(**kwargs)
         arr_out.block_until_ready()
         times.append((time.perf_counter() - t0) * 1000)
 
     # Print
-    times_array = jnp.array(times)
-    print(f"et mean: {jnp.mean(times_array):.6f} ms")
-    print(f"et med : {jnp.median(times_array):.6f} ms")
-    print(f"et min : {jnp.min(times_array):.6f} ms")
+    times_arr = jnp.array(times)
+    print(f"et mean: {jnp.mean(times_arr):.6f} ms")
+    print(f"et med : {jnp.median(times_arr):.6f} ms")
+    print(f"et min : {jnp.min(times_arr):.6f} ms")

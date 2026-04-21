@@ -1,5 +1,5 @@
 """
-JAX class for ~equivalent to torch.nn.Linear,
+JAX class equivalent to torch.nn.Linear,
 """
 
 from typing import Self
@@ -13,21 +13,39 @@ __all__ = ["Linear"]
 
 
 @register_dataclass
-@dataclass
+@dataclass(frozen=True)
 class Linear():
     """
-    JAX dataclass equivalent of torch.nn.Linear.
+    in_features: num input features (nchans_in)
+    out_features: num output features (nchans_out)
+    bias: if to include bias
+    w_init: how to init the weight ('uniform', 'zeros')
+    b_init: how to init the bias ('uniform', 'zeros')
+            'uniform' --> still default in torch (uses fan_in)
+            'zeros'   --> usual default for Transformers
+    dtype: jnp data type
     """
-    # Metadata (for jax.tree_util setup)
+    # Metadata (for jax.tree_util)
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
 
     # Self attributes
-    in_features: int = field(default=1, metadata=metadata)
-    out_features: int = field(default=1, metadata=metadata)
+    in_features: int = field(metadata=metadata)
+    out_features: int = field(metadata=metadata)
     bias: bool = field(default=True, metadata=metadata)
     w_init: str = field(default="uniform", metadata=metadata)
     b_init: str = field(default="zeros", metadata=metadata)
     dtype: DTypeLike = field(default=jnp.float32, metadata=metadata)
+
+    def __post_init__(self: Self,
+                      ) -> None:
+        """
+        Standard dataclass method, called automatically.
+        """
+        # Checks
+        if self.in_features < 1:
+            raise ValueError("in_features must be a positive int")
+        if self.out_features < 1:
+            raise ValueError("out_features must be a positive int")
 
     def init_params(self: Self,
                     key: Array,

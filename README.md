@@ -17,7 +17,7 @@ has a README with some points, citations, and external links.
 
 ## More info
 See README-dev.md for the developer (repo setup, coding points, etc.).  
-See README-ML.md for machine learning (ML) points and discussion.  
+See README-ML.md for machine learning (ML) and JAX points and discussion.  
 
 ## Questions/comments
 erik.edwards4@gmail.com  

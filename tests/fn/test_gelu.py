@@ -1,20 +1,20 @@
 """
-Pytest function for nn/relu.py.
+Pytest function for nn/gelu.py.
 """
 from functools import partial
 import jax
 import jax.numpy as jnp
-# from jax.nn import relu
+# from jax.nn import gelu
 from jaxtyping import Float
 from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
-from models_x.nn.relu import relu
+from models_x.fn.gelu import gelu
 
 
-# relu.relu
-def test_relu():
+# gelu.gelu
+def test_gelu():
     """
-    Pytest relu.relu.
+    Pytest gelu.gelu.
     """
     # Start
     print("")
@@ -22,8 +22,8 @@ def test_relu():
     prng_key = jax.random.PRNGKey(seed=0)
 
     # Make input data
-    nbatch = 4          # micro-batch size
-    nsamps = 16
+    nbatch = 8          # micro-batch size
+    nsamps = 512
     size_in = (nbatch, nsamps)
     dtype = jnp.float32
     device = jax.devices("gpu")[0]
@@ -33,7 +33,7 @@ def test_relu():
                                  ).to_device(device)
 
     # Test __call__
-    batch_out = relu(batch_in)
+    batch_out = gelu(batch_in)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
@@ -46,11 +46,11 @@ def test_relu():
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=relu,
+    profile_callable(fun=gelu,
                      n_runs=64,
                      arr=batch_in)
 
     # JAXPR
-    fun = partial(relu, arr=batch_in)
+    fun = partial(gelu, arr=batch_in)
     jaxpr = jax.make_jaxpr(fun=fun)()
     print(f"JAXPR:\n{jaxpr}")

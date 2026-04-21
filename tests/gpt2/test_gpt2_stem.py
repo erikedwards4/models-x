@@ -1,6 +1,7 @@
 """
 Pytest function for gpt2/gpt2_stem.py.
 """
+from functools import partial
 import pytest
 import jax
 import jax.numpy as jnp
@@ -42,7 +43,7 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     params_key, dropout_key = jax.random.split(prng_key)
 
     # Get params dict
-    params = stem.init_params(prng_key=params_key)
+    params = stem.init_params(key=params_key)
     assert 'stem' in params
     assert isinstance(params['stem'], Array)
     assert params['stem'].dtype == jnp.dtype(config.dtype)
@@ -65,15 +66,15 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
                                    ).to_device(device)
 
     # Test __call__
-    batch_out = stem(input_ids=input_ids,
-                     params=params,
-                     dropout_key=dropout_key,
+    batch_out = stem(params=params,
+                     input_ids=input_ids,
+                     key=dropout_key,
                      deterministic=False)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
     assert batch_out.dtype == jnp.dtype(config.dtype)
-    assert batch_out.device == position_ids.device
+    assert batch_out.device == input_ids.device
     assert batch_out.shape == (nbatch, ntoks, config.d_model)
     assert jnp.all(jnp.isfinite(batch_out))
 

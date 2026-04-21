@@ -268,6 +268,3 @@ uv cache clean
 
 Now we have a src layout with an editable install, which is the industry-standard for a Python ML repo.  
 But the immediate purpose was to allow 'from models_x.xxx.xxx import xxx' within the Python code.  
-
-## Questions/comments
-erik.edwards4@gmail.com  

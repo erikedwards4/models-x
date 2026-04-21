@@ -1,5 +1,5 @@
 """
-JAX class for ~equivalent to torch.nn.LayerNorm,
+JAX class equivalent to torch.nn.LayerNorm,
 but simplified to assume elementwise_affine=True
 (without elementwise_affine a layer norm is just
 a z-score along axis=-1, so rarely used as such).
@@ -16,19 +16,32 @@ __all__ = ["LayerNorm"]
 
 
 @register_dataclass
-@dataclass
+@dataclass(frozen=True)
 class LayerNorm():
     """
-    JAX dataclass equivalent of torch.nn.LayerNorm.
+    normalized_shape: shape along the axis=-1 to be normalized
+    bias: if to include bias
+    dtype: jnp data type
     """
-    # Metadata (for jax.tree_util setup)
+    # Metadata (for jax.tree_util)
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
 
     # Self attributes
-    normalized_shape: int = field(default=1, metadata=metadata)
+    normalized_shape: int = field(metadata=metadata)
     eps: float = field(default=1e-5, metadata=metadata)
     bias: bool = field(default=True, metadata=metadata)
     dtype: DTypeLike = field(default=jnp.float32, metadata=metadata)
+
+    def __post_init__(self: Self,
+                      ) -> None:
+        """
+        Standard dataclass method, called automatically.
+        """
+        # Checks
+        if self.normalized_shape < 1:
+            raise ValueError("normalized_shape must be a positive int")
+        if not 0.0 < self.eps < 1.0:
+            raise ValueError("eps out of expected range")
 
     def init_params(self: Self,
                     _key: Array,
