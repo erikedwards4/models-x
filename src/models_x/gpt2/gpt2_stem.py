@@ -21,9 +21,9 @@ __all__ = ["GPT2Stem"]
 @dataclass(frozen=True)
 class GPT2Stem():
     """
-    GPT2 Stem (WTE + WPE and dropout).
+    GPT-2 Stem (WTE + WPE and dropout).
     """
-    # Replaces __init__ since registered dataclass
+    # __init__
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
     cfg: GPT2Config = field(metadata=metadata)
     wte: Embedding = field(metadata=metadata)
@@ -35,7 +35,7 @@ class GPT2Stem():
                     **kwargs: Any,
                     ) -> Self:
         """
-        Instantiate from_config with optional kwargs to override.
+        Instantiate from_config, with optional kwargs to override.
         """
         # Config attributes
         vocab_size = int(kwargs.get('vocab_size', cfg.vocab_size))
@@ -65,11 +65,11 @@ class GPT2Stem():
         Initialize the parameters dict.
         """
         # PRNG keys
-        key1, key2 = jax.random.split(key)
+        key1, key2 = jax.random.split(key=key, num=2)
 
         # Params dict
-        return {'wte': self.wte.init_params(key1),
-                'wpe': self.wpe.init_params(key2)}
+        return {'wte': self.wte.init_params(key=key1),
+                'wpe': self.wpe.init_params(key=key2)}
 
     def __call__(self: Self,
                  params: dict[str, Any],
@@ -94,13 +94,13 @@ class GPT2Stem():
                            arr=input_ids)                   # B x T x D
         pos_emb = self.wpe(params=params['wpe'],
                            arr=position_ids)                # T x D
-        batch = tok_emb + pos_emb                           # B x T x D
+        word_emb = tok_emb + pos_emb                        # B x T x D
 
         # Dropout
-        p = float(getattr(self.cfg, "p_drop_stem", 0.0))
-        batch = dropout(arr=batch,
-                        p=p,
-                        key=key,
-                        deterministic=deterministic)        # B x T x D
+        p = 0.0 if deterministic else \
+            float(getattr(self.cfg, 'p_drop_stem', 0.0))
+        word_emb = dropout(arr=word_emb,
+                           p=p,
+                           key=key)                         # B x T x D
 
-        return batch                                        # B x T x D
+        return word_emb                                     # B x T x D

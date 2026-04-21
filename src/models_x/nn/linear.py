@@ -54,7 +54,7 @@ class Linear():
         Initialize the parameters dict.
         """
         # PRNG keys
-        key1, key2 = jax.random.split(key)
+        key1, key2 = jax.random.split(key=key, num=2)
 
         # Linear weight
         w_shape = (int(self.in_features),

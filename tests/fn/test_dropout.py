@@ -13,8 +13,7 @@ from models_x.fn.dropout import dropout
 
 # dropout.dropout
 @pytest.mark.parametrize("p", (0.1, ))
-@pytest.mark.parametrize("deterministic", (False, ))
-def test_dropout(p, deterministic):
+def test_dropout(p):
     """
     Pytest dropout.dropout.
     """
@@ -38,8 +37,7 @@ def test_dropout(p, deterministic):
     # Test __call__
     batch_out = dropout(arr=batch_in,
                         p=p,
-                        key=prng_key,
-                        deterministic=deterministic)
+                        key=prng_key)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
@@ -47,7 +45,7 @@ def test_dropout(p, deterministic):
     assert batch_out.device == batch_in.device
     assert batch_out.shape == batch_in.shape
     assert jnp.all(jnp.isfinite(batch_out))
-    if deterministic or not 0.0 < p < 0.999999:
+    if not 0.0 < p < 0.999999:
         assert jnp.allclose(a=batch_in,
                             b=batch_out,
                             rtol=1e-7,
@@ -61,14 +59,12 @@ def test_dropout(p, deterministic):
                      n_runs=32,
                      arr=batch_in,
                      p=p,
-                     key=prng_key,
-                     deterministic=deterministic)
+                     key=prng_key)
 
     # JAXPR
     # fun = partial(dropout,
     #               arr=batch_in,
     #               p=p,
-    #               key=prng_key,
-    #               deterministic=deterministic)
+    #               key=prng_key)
     # jaxpr = jax.make_jaxpr(fun=fun)()
     # print(f"JAXPR:\n{jaxpr}")

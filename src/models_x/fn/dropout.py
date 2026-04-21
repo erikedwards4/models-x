@@ -14,21 +14,17 @@ __all__ = ["dropout"]
 def dropout(arr: Float[Array, "..."],
             *,
             p: float = 0.0,
-            key: Array | None = None,
-            deterministic: bool = True,
+            key: Array | None = None
             ) -> Float[Array, "..."]:
     """
     arr: JAX Array of any shape
     p: dropout probability in [0.0, 1.0)
-       0.0 --> no dropout
+       0.0 --> no dropout (eval mode)
     key: JAX PRNG key
-         None --> no dropout
-    deterministic: similar to eval vs. train mode
-                   True  --> no dropout (eval mode)
-                   False --> use dropout (train mode)
+         None --> no dropout (eval mode)
     """
     # Only if training and valid
-    if not deterministic and isinstance(key, Array) and 0.0 < p < 0.999999:
+    if 0.0 < p < 0.999999 and isinstance(key, Array):
         # Keep prob (p is p_drop)
         p_keep = 1.0 - p
 

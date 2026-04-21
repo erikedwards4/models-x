@@ -40,7 +40,7 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
 
     # Get PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
-    params_key, dropout_key = jax.random.split(prng_key)
+    params_key, dropout_key = jax.random.split(key=prng_key, num=2)
 
     # Get params dict
     params = stem.init_params(key=params_key)
