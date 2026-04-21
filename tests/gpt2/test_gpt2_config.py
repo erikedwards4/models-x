@@ -20,15 +20,15 @@ def test_gpt2_config(vocab_size, d_model, dtype):
     print("")
 
     # Get config
-    config = GPT2Config(vocab_size=vocab_size,
-                        d_model=d_model,
-                        dtype=dtype)
-    assert is_dataclass(config)
-    assert hasattr(config, 'vocab_size')
-    assert config.vocab_size == vocab_size
+    cfg = GPT2Config(vocab_size=vocab_size,
+                     d_model=d_model,
+                     dtype=dtype)
+    assert is_dataclass(cfg)
+    assert hasattr(cfg, 'vocab_size')
+    assert cfg.vocab_size == vocab_size
 
     # Flatten the object
-    leaves, treedef = tree_flatten(tree=config)
+    leaves, treedef = tree_flatten(tree=cfg)
     # print(f"Aux_data (treedef): {treedef}, {type(treedef)}")
     # print(f"Children (leaves): {leaves}, {type(leaves)}")
     # Expected: [] (since everything is marked static=True)
@@ -43,20 +43,20 @@ def test_gpt2_config(vocab_size, d_model, dtype):
     print(f"Metadata: {metadata}, {type(metadata)}")
     assert isinstance(metadata, tuple)
     assert len(metadata) > 0
-    assert hash(treedef) > 0
+    assert hash(treedef) != 0
     # If the hash fails, one of the 'static=True'
     # fields is not a valid JAX constant
 
     # Unflatten the object (reconstruction)
-    new_config = tree_unflatten(treedef=treedef,
-                                leaves=leaves)
-    assert new_config == config
+    new_cfg = tree_unflatten(treedef=treedef,
+                             leaves=leaves)
+    assert new_cfg == cfg
     print("Pytree reconstruction successful!")
 
     # Test JIT compatibility
     @jax.jit
-    def get_d_model(config: GPT2Config,
+    def get_d_model(cfg: GPT2Config,
                     ) -> int:
-        return config.d_model
-    jit_d_model = get_d_model(config)
+        return cfg.d_model
+    jit_d_model = get_d_model(cfg=cfg)
     print(f"JIT output: d_model = {jit_d_model}")

@@ -80,11 +80,17 @@ def test_linear(in_features, out_features, bias,
     assert batch_out.shape == (nbatch, ntoks, out_features)
     assert jnp.all(jnp.isfinite(batch_out))
 
+    # JIT compile
+    mdl_jit = jax.jit(mdl,
+                      static_argnames=())
+    batch_out = mdl_jit(params=params,
+                        arr=batch_in)
+
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=mdl,
+    profile_callable(fun=mdl_jit,
                      n_runs=32,
                      params=params,
                      arr=batch_in)

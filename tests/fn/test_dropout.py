@@ -1,7 +1,7 @@
 """
 Pytest function for nn/dropout.py.
 """
-# from functools import partial
+from functools import partial
 import pytest
 import jax
 import jax.numpy as jnp
@@ -36,8 +36,8 @@ def test_dropout(p):
 
     # Test __call__
     batch_out = dropout(arr=batch_in,
-                        p=p,
-                        key=prng_key)
+                        key=prng_key,
+                        p=p)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
@@ -51,20 +51,27 @@ def test_dropout(p):
                             rtol=1e-7,
                             atol=1e-7)
 
+    # JIT compile
+    dropout_jit = jax.jit(dropout,
+                          static_argnames=("p",))
+    batch_out = dropout_jit(arr=batch_in,
+                            key=prng_key,
+                            p=p)
+
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=dropout,
+    profile_callable(fun=dropout_jit,
                      n_runs=32,
                      arr=batch_in,
-                     p=p,
-                     key=prng_key)
+                     key=prng_key,
+                     p=p)
 
     # JAXPR
-    # fun = partial(dropout,
-    #               arr=batch_in,
-    #               p=p,
-    #               key=prng_key)
-    # jaxpr = jax.make_jaxpr(fun=fun)()
-    # print(f"JAXPR:\n{jaxpr}")
+    fun = partial(dropout,
+                  arr=batch_in,
+                  key=prng_key,
+                  p=p)
+    jaxpr = jax.make_jaxpr(fun=fun)()
+    print(f"JAXPR:\n{jaxpr}")

@@ -13,14 +13,14 @@ __all__ = ["dropout"]
 
 def dropout(arr: Float[Array, "..."],
             *,
+            key: Array | None = None,
             p: float = 0.0,
-            key: Array | None = None
             ) -> Float[Array, "..."]:
     """
     arr: JAX Array of any shape
+    key: JAX PRNG key
     p: dropout probability in [0.0, 1.0)
        0.0 --> no dropout (eval mode)
-    key: JAX PRNG key
          None --> no dropout (eval mode)
     """
     # Only if training and valid

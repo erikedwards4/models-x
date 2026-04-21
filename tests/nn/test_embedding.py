@@ -77,11 +77,17 @@ def test_embedding(num_embeddings, embedding_dim,
     embd0 = params['w'][input_ids[0, 0]]
     assert jnp.allclose(batch_out[0, 0], embd0)
 
+    # JIT compile
+    mdl_jit = jax.jit(mdl,
+                      static_argnames=())
+    batch_out = mdl_jit(params=params,
+                        arr=input_ids)
+
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=mdl,
+    profile_callable(fun=mdl_jit,
                      n_runs=32,
                      params=params,
                      arr=input_ids)

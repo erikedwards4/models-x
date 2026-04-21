@@ -85,9 +85,7 @@ class GPT2Stem():
         # Position IDs
         position_ids = jnp.arange(start=0,
                                   stop=input_ids.shape[-1],
-                                  step=1,
-                                  dtype=input_ids.dtype,
-                                  device=input_ids.device)  # T
+                                  dtype=jnp.int32)          # T
 
         # Embeddings
         tok_emb = self.wte(params=params['wte'],

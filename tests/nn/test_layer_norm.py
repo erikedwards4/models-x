@@ -75,11 +75,17 @@ def test_layer_norm(normalized_shape, eps, bias, dtype):
     assert batch_out.shape == batch_in.shape
     assert jnp.all(jnp.isfinite(batch_out))
 
+    # JIT compile
+    mdl_jit = jax.jit(mdl,
+                      static_argnames=())
+    batch_out = mdl_jit(params=params,
+                        arr=batch_in)
+
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=mdl,
+    profile_callable(fun=mdl_jit,
                      n_runs=64,
                      params=params,
                      arr=batch_in)

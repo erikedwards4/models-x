@@ -13,11 +13,10 @@ from models_x.gpt2.gpt2_decoder import GPT2Decoder
 
 
 # gpt2_decoder.GPT2Decoder
-@pytest.mark.parametrize("vocab_size", (50257, ))
-@pytest.mark.parametrize("n_positions", (1024, ))
-@pytest.mark.parametrize("d_model", (768, ))
+@pytest.mark.parametrize("nblocks", (6, ))
+@pytest.mark.parametrize("attn_implementation", ("sdpa", ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2_decoder(vocab_size, n_positions, d_model, dtype):
+def test_gpt2_decoder(nblocks, attn_implementation, dtype):
     """
     Pytest gpt2_decoder.GPT2Decoder.
     """
@@ -27,16 +26,15 @@ def test_gpt2_decoder(vocab_size, n_positions, d_model, dtype):
     print_memory_stats(label="start")
 
     # Get config
-    config = GPT2Config(vocab_size=vocab_size,
-                        n_positions=n_positions,
-                        d_model=d_model,
-                        dtype=dtype)
+    cfg = GPT2Config(nblocks=nblocks,
+                     attn_implementation=attn_implementation,
+                     dtype=dtype)
 
     # Get mdl
-    decoder = GPT2Decoder.from_config(cfg=config)
+    decoder = GPT2Decoder.from_config(cfg=cfg)
     assert isinstance(decoder, GPT2Decoder)
     assert callable(decoder)
-    assert decoder.cfg.dtype == config.dtype == dtype
+    assert decoder.cfg.dtype == cfg.dtype == dtype
 
     # Get PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
@@ -55,42 +53,48 @@ def test_gpt2_decoder(vocab_size, n_positions, d_model, dtype):
     # Make input data
     nbatch = 4          # micro-batch size
     ntoks = 16
-    size_in = (nbatch, ntoks)
-    input_ids = jax.random.randint(key=prng_key,
-                                   shape=size_in,
-                                   minval=0,
-                                   maxval=vocab_size,
-                                   dtype=jnp.int32,
-                                   ).to_device(device)
+    size_in = (nbatch, ntoks, d_model)
+    batch_in = jax.random.normal(key=prng_key,
+                                 shape=size_in,
+                                 dtype=dtype,
+                                 ).to_device(device)
 
     # Test __call__
     batch_out = decoder(params=params,
-                     input_ids=input_ids,
-                     key=dropout_key,
-                     deterministic=False)
+                        arr=batch_in,
+                        key=dropout_key,
+                        deterministic=False)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
-    assert batch_out.dtype == jnp.dtype(config.dtype)
-    assert batch_out.device == input_ids.device
-    assert batch_out.shape == (nbatch, ntoks, config.d_model)
+    assert batch_out.dtype == batch_in.dtype
+    assert batch_out.device == batch_in.device
+    assert batch_out.shape == batch_in.shape
     assert jnp.all(jnp.isfinite(batch_out))
+
+    # JIT compile
+    decoder_jit = jax.jit(decoder,
+                          static_argnames=("deterministic",))
+    batch_out = decoder_jit(params=params,
+                            arr=batch_in,
+                            key=dropout_key,
+                            deterministic=False)
 
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=decoder,
+    profile_callable(fun=decoder_jit,
                      n_runs=32,
                      params=params,
-                     input_ids=input_ids,
+                     arr=batch_in,
                      key=None,
                      deterministic=True)
 
     # JAXPR
     # fun = partial(decoder,
     #               params=params,
-    #               input_ids=input_ids,
+    #               batch_in=batch_in,
     #               key=None,
     #               deterministic=True)
     # jaxpr = jax.make_jaxpr(fun=fun)()

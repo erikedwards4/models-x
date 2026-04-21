@@ -42,11 +42,16 @@ def test_gelu():
     assert batch_out.shape == batch_in.shape
     assert jnp.all(jnp.isfinite(batch_out))
 
+    # JIT compile
+    gelu_jit = jax.jit(gelu,
+                       static_argnames=())
+    batch_out = gelu_jit(batch_in)
+
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=gelu,
+    profile_callable(fun=gelu_jit,
                      n_runs=64,
                      arr=batch_in)
 

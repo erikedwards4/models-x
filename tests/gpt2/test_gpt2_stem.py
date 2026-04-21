@@ -27,16 +27,16 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     print_memory_stats(label="start")
 
     # Get config
-    config = GPT2Config(vocab_size=vocab_size,
-                        n_positions=n_positions,
-                        d_model=d_model,
-                        dtype=dtype)
+    cfg = GPT2Config(vocab_size=vocab_size,
+                     n_positions=n_positions,
+                     d_model=d_model,
+                     dtype=dtype)
 
     # Get mdl
-    stem = GPT2Stem.from_config(cfg=config)
+    stem = GPT2Stem.from_config(cfg=cfg)
     assert isinstance(stem, GPT2Stem)
     assert callable(stem)
-    assert stem.cfg.dtype == config.dtype == dtype
+    assert stem.cfg.dtype == cfg.dtype == dtype
 
     # Get PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
@@ -71,16 +71,24 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
-    assert batch_out.dtype == jnp.dtype(config.dtype)
+    assert batch_out.dtype == jnp.dtype(cfg.dtype)
     assert batch_out.device == input_ids.device
-    assert batch_out.shape == (nbatch, ntoks, config.d_model)
+    assert batch_out.shape == (nbatch, ntoks, cfg.d_model)
     assert jnp.all(jnp.isfinite(batch_out))
+
+    # JIT compile
+    stem_jit = jax.jit(stem,
+                       static_argnames=("deterministic",))
+    batch_out = stem_jit(params=params,
+                         input_ids=input_ids,
+                         key=dropout_key,
+                         deterministic=False)
 
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=stem,
+    profile_callable(fun=stem_jit,
                      n_runs=32,
                      params=params,
                      input_ids=input_ids,

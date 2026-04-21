@@ -42,11 +42,16 @@ def test_relu():
     assert batch_out.shape == batch_in.shape
     assert jnp.all(jnp.isfinite(batch_out))
 
+    # JIT compile
+    relu_jit = jax.jit(relu,
+                       static_argnames=())
+    batch_out = relu_jit(batch_in)
+
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=relu,
+    profile_callable(fun=relu_jit,
                      n_runs=64,
                      arr=batch_in)
 

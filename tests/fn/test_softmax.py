@@ -45,11 +45,17 @@ def test_softmax(axis):
     assert batch_out.shape == batch_in.shape
     assert jnp.all(jnp.isfinite(batch_out))
 
+    # JIT compile
+    softmax_jit = jax.jit(softmax,
+                          static_argnames=("axis",))
+    batch_out = softmax_jit(arr=batch_in,
+                            axis=axis)
+
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=softmax,
+    profile_callable(fun=softmax_jit,
                      n_runs=64,
                      arr=batch_in,
                      axis=axis)

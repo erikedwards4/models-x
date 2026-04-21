@@ -74,7 +74,6 @@ class Embedding():
         return jnp.take(a=params['w'],
                         indices=arr,
                         axis=0,
-                        mode='fill',
-                        fill_value=0.0,
+                        mode=None,
                         unique_indices=False,
                         indices_are_sorted=False)       # ... x D
