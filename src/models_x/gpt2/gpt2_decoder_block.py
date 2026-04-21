@@ -1,13 +1,6 @@
 """
-GPT-2 Transformer Decoder stage,
-which is the main section with 1-12 decoder layers.
-
-See gpt2_decoder_block.py for the MHA (multi-head attention).
-This Decoder is simply a stack of these blocks, e.g.
-12 layers (repeated blocks) for the GPT-2 small version.
-
-The input is the word embeddings from GPT2Stem with dim d_model.
-The output is the final contextualized embeddings with dim d_model.
+GPT-2 Transformer Decoder block (layer),
+which are repeated in the main Decoder layers.
 """
 
 from typing import Self, Any
@@ -18,22 +11,26 @@ import jax.numpy as jnp
 from jaxtyping import Float, Int, Array
 from models_x.nn.layer_norm import LayerNorm
 from models_x.gpt2.gpt2_config import GPT2Config
-from models_x.gpt2.gpt2_decoder_block import GPT2DecoderBlock
+from models_x.gpt2.gpt2_decoder_block_attn import GPT2DecoderBlockAttn
+from models_x.gpt2.gpt2_decoder_block_sdpa import GPT2DecoderBlockSDPA
+from models_x.gpt2.gpt2_decoder_block_mlp import GPT2DecoderBlockMLP
 
-__all__ = ["GPT2Decoder"]
+__all__ = ["GPT2DecoderBlock"]
 
 
 @register_dataclass
 @dataclass(frozen=True)
-class GPT2Decoder():
+class GPT2DecoderBlock():
     """
-    GPT-2 Transformer Decoder.
+    GPT-2 Decoder block (layer).
     """
     # __init__
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
     cfg: GPT2Config = field(metadata=metadata)
-    blocks: list[GPT2DecoderBlock] = field(metadata=metadata)
-    lnorm_f: LayerNorm = field(metadata=metadata)
+    attn: GPT2DecoderBlockAttn = field(metadata=metadata)
+    lnorm1: LayerNorm = field(metadata=metadata)
+    mlp: GPT2DecoderBlockMLP = field(metadata=metadata)
+    lnorm2: LayerNorm = field(metadata=metadata)
 
     @classmethod
     def from_config(cls: type[Self],
@@ -44,7 +41,6 @@ class GPT2Decoder():
         Instantiate from_config, with optional kwargs to override.
         """
         # Config attributes
-        nblocks = int(kwargs.get('nblocks', cfg.nblocks))
         d_model = int(kwargs.get('d_model', cfg.d_model))
         nheads = int(kwargs.get('nheads', cfg.nheads))
         p_drop_attn = float(kwargs.get('p_drop_attn', cfg.p_drop_attn))
@@ -55,26 +51,34 @@ class GPT2Decoder():
         lnorm_eps = float(kwargs.get('lnorm_eps', cfg.lnorm_eps))
         dtype = jnp.dtype(kwargs.get('dtype', cfg.dtype))
 
-        # List of decoder blocks
-        blocks: list[GPT2DecoderBlock] = []
-        for _ in range(nblocks):
-            block = GPT2DecoderBlock(d_model=d_model,
-                                     nheads=nheads,
-                                     p_drop_attn=p_drop_attn,
-                                     p_drop_res=p_drop_res,
-                                     attn_implementation=attn_implementation,
-                                     d_inner=d_inner,
-                                     p_drop_mlp=p_drop_res,
-                                     lnorm_eps=lnorm_eps,
-                                     dtype=dtype)
+        # Decoder block attention
+        attn = GPT2DecoderBlockAttn(d_model=d_model,
+                                    nheads=nheads,
+                                    p_drop_attn=p_drop_attn,
+                                    p_drop_res=p_drop_res,
+                                    attn_implementation=attn_implementation,
+                                    lnorm_eps=lnorm_eps,
+                                    dtype=dtype)
 
-        # Final layer norm
-        lnorm_f = LayerNorm(normalized_shape=d_model,
-                            eps=lnorm_eps,
-                            bias=True,
-                            dtype=dtype)
+        # Layer norm for the 1st Add & Norm (after the Attn)
+        lnorm1 = LayerNorm(normalized_shape=d_model,
+                           eps=lnorm_eps,
+                           bias=True,
+                           dtype=dtype)
 
-        return cls(cfg=cfg, blocks=blocks, lnorm_f=lnorm_f)
+        # Decoder block MLP
+        mlp = GPT2DecoderBlockMLP(d_model=d_model,
+                                  d_inner=d_inner,
+                                  p_drop=p_drop_res,
+                                  dtype=dtype)
+
+        # Layer norm for the 2nd Add & Norm (after the MLP)
+        lnorm2 = LayerNorm(normalized_shape=d_model,
+                           eps=lnorm_eps,
+                           bias=True,
+                           dtype=dtype)
+
+        return cls(cfg=cfg, lnorm1=lnorm1, lnorm2=lnorm2, attn=attn, mlp=mlp)
 
     def init_params(self: Self,
                     key: Array,
@@ -83,17 +87,20 @@ class GPT2Decoder():
         Initialize the parameters dict.
         """
         # PRNG keys
-        keys = jax.random.split(key=key, num=self.nblocks)
+        key1, key2 = jax.random.split(key=key, num=2)
 
         # Params dict
         params: dict[str, Any] = {}
 
-        # Decoder blocks
-        for b, block in enumerate(self.blocks):
-            params[f'block{b}'] = block.init_params(keys[b])
+        # Decoder block attention
+        params['attn'] = self.attn.init_params(key1)
 
-        # Final LayerNorm
-        params['lnorm_f'] = self.lnorm_f.init_params()
+        # Decoder block MLP
+        params['mlp'] = self.mlp.init_params(key1)
+
+        # Layer norms
+        params['lnorm1'] = self.lnorm1.init_params()
+        params['lnorm2'] = self.lnorm2.init_params()
 
         return params
 
@@ -108,15 +115,22 @@ class GPT2Decoder():
         T = ntoks (num tokens, input seq len)
         D = d_model (num embeddings, model dim)
         """
-        # Main Decoder blocks
-        for b, block in enumerate(self.blocks):
-            arr = block(params=params[f'block{b}'],
+        # Attn
+        residual = arr                                  # B x T x D
+        arr = self.lnorm1(params=params['lnorm1'],
+                          arr=arr)                      # B x T x D
+        arr = self.attn(params=params['attn'],
                         arr=arr,
-                        key=key,
-                        deterministic=deterministic)    # B x T x D
+                        key=key)                        # B x T x D
+        arr = arr + residual                            # B x T x D
 
-        # Final LayerNorm
-        arr = self.lnorm_f(params=params['lnorm_f'],
-                           arr=arr)                     # B x T x D
+        # MLP
+        residual = arr                                  # B x T x D
+        arr = self.lnorm2(params=params['lnorm2'],
+                          arr=arr)                      # B x T x D
+        arr = self.mlp(params=params['mlp'],
+                       arr=arr,
+                       key=key)                         # B x T x D
+        arr = arr + residual                            # B x T x D
 
         return batch                                    # B x T x D

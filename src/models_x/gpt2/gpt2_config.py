@@ -42,13 +42,13 @@ class GPT2Config():
 
     # Helpers for derived properties
     @property
-    def d_hid(self: Self) -> int:
-        """Sets d_hid for the GTP2BlockMLP."""
+    def d_inner(self: Self) -> int:
+        """Sets d_inner for the GTP2DecoderBlockMLP."""
         return 4 * self.d_model
 
     @property
     def d_head(self: Self) -> int:
-        """Sets d_head for the GPT2BlockAtten."""
+        """Sets d_head for the GPT2DecoderBlockAtten."""
         assert self.d_model % self.nheads == 0, \
             "d_model must be divisible by nheads"
         return self.d_model // self.nheads

@@ -1,5 +1,5 @@
 """
-Pytest function for gpt2/gpt2_decoder.py.
+Pytest function for gpt2/gpt2_decoder_block_mlp.py.
 """
 import pytest
 import jax
@@ -8,17 +8,16 @@ from jaxtyping import Float, Array
 from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
-from models_x.gpt2.gpt2_decoder import GPT2Decoder
+from models_x.gpt2.gpt2_decoder_block_mlp import GPT2DecoderBlockMLP
 
 
-# gpt2_decoder.GPT2Decoder
-@pytest.mark.parametrize("nblocks", (6, ))
+# gpt2_decoder_block_mlp.GPT2DecoderBlockMLP
 @pytest.mark.parametrize("d_model", (768, ))
 @pytest.mark.parametrize("attn_implementation", ("sdpa", ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
+def test_gpt2_decoder_block_mlp(d_model, attn_implementation, dtype):
     """
-    Pytest gpt2_decoder.GPT2Decoder.
+    Pytest gpt2_decoder_block_mlp.GPT2DecoderBlockMLP.
     """
     # Start
     print("")
@@ -26,23 +25,22 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
     print_memory_stats(label="start")
 
     # Get config
-    cfg = GPT2Config(nblocks=nblocks,
-                     d_model=d_model,
+    cfg = GPT2Config(d_model=d_model,
                      attn_implementation=attn_implementation,
                      dtype=dtype)
 
     # Get mdl
-    decoder = GPT2Decoder.from_config(cfg=cfg)
-    assert isinstance(decoder, GPT2Decoder)
-    assert callable(decoder)
-    assert decoder.cfg.dtype == cfg.dtype == dtype
+    blk = GPT2DecoderBlockMLP.from_config(cfg=cfg)
+    assert isinstance(blk, GPT2DecoderBlockMLP)
+    assert callable(blk)
+    assert blk.cfg.dtype == cfg.dtype == dtype
 
     # Get PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
     params_key, dropout_key = jax.random.split(key=prng_key, num=2)
 
     # Get params dict
-    params = decoder.init_params(key=params_key)
+    params = blk.init_params(key=params_key)
     assert 'wte' in params
     assert isinstance(params['wte'], dict)
 
@@ -61,10 +59,10 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
                                  ).to_device(device)
 
     # Test __call__
-    batch_out = decoder(params=params,
-                        arr=batch_in,
-                        key=dropout_key,
-                        deterministic=False)
+    batch_out = blk(params=params,
+                    arr=batch_in,
+                    key=dropout_key,
+                    deterministic=False)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
@@ -74,18 +72,18 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
     assert jnp.all(jnp.isfinite(batch_out))
 
     # JIT compile
-    decoder_jit = jax.jit(decoder,
-                          static_argnames=("deterministic",))
-    batch_out = decoder_jit(params=params,
-                            arr=batch_in,
-                            key=dropout_key,
-                            deterministic=False)
+    blk_jit = jax.jit(blk,
+                      static_argnames=("deterministic",))
+    batch_out = blk_jit(params=params,
+                        arr=batch_in,
+                        key=dropout_key,
+                        deterministic=False)
 
     # See memory usage
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=decoder_jit,
+    profile_callable(fun=blk_jit,
                      n_runs=32,
                      params=params,
                      arr=batch_in,

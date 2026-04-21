@@ -95,10 +95,8 @@ class GPT2Stem():
         word_emb = tok_emb + pos_emb                        # B x T x D
 
         # Dropout
-        p = 0.0 if deterministic else \
-            float(getattr(self.cfg, 'p_drop_stem', 0.0))
-        word_emb = dropout(arr=word_emb,
-                           p=p,
-                           key=key)                         # B x T x D
+        if not deterministic:
+            p = float(getattr(self.cfg, 'p_drop_stem', 0.0))
+            word_emb = dropout(arr=word_emb, key=key, p=p)  # B x T x D
 
         return word_emb                                     # B x T x D

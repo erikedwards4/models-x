@@ -1,7 +1,6 @@
 """
 Pytest function for gpt2/gpt2_stem.py.
 """
-# from functools import partial
 import pytest
 import jax
 import jax.numpy as jnp
@@ -94,12 +93,3 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
                      input_ids=input_ids,
                      key=None,
                      deterministic=True)
-
-    # JAXPR
-    # fun = partial(stem,
-    #               params=params,
-    #               input_ids=input_ids,
-    #               key=None,
-    #               deterministic=True)
-    # jaxpr = jax.make_jaxpr(fun=fun)()
-    # print(f"JAXPR:\n{jaxpr}")
