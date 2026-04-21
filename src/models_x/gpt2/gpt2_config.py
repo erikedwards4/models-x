@@ -52,3 +52,8 @@ class GPT2Config():
         assert self.d_model % self.nheads == 0, \
             "d_model must be divisible by nheads"
         return self.d_model // self.nheads
+
+    @property
+    def scale(self: Self) -> float:
+        """Sets scale for the GPT2DecoderBlockAtten."""
+        return self.d_model**-0.5

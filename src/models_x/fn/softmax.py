@@ -7,6 +7,8 @@ use jax.nn.softmax if need the where input for masking.
 
 Note: no performance gain to hard-code axis = -1,
 and no difference in the JAXPR.
+
+Note: this does handle -Inf vals to output 0 where -Inf.
 """
 
 import jax.numpy as jnp
