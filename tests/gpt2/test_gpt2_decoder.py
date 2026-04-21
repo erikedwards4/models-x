@@ -37,9 +37,10 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
     assert callable(decoder)
     assert decoder.cfg.dtype == cfg.dtype == dtype
 
-    # Get PRNG keys
+    # PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
-    params_key, dropout_key = jax.random.split(key=prng_key, num=2)
+    params_key, data_key, call_key = \
+        jax.random.split(key=prng_key, num=3)
 
     # Get params dict
     params = decoder.init_params(key=params_key)
@@ -55,7 +56,7 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
     nbatch = 4          # micro-batch size
     ntoks = 16
     size_in = (nbatch, ntoks, d_model)
-    batch_in = jax.random.normal(key=prng_key,
+    batch_in = jax.random.normal(key=data_key,
                                  shape=size_in,
                                  dtype=dtype,
                                  ).to_device(device)
@@ -63,7 +64,7 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
     # Test __call__
     batch_out = decoder(params=params,
                         arr=batch_in,
-                        key=dropout_key,
+                        key=call_key,
                         deterministic=False)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
@@ -78,7 +79,7 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
                           static_argnames=("deterministic",))
     batch_out = decoder_jit(params=params,
                             arr=batch_in,
-                            key=dropout_key,
+                            key=call_key,
                             deterministic=False)
 
     # See memory usage
@@ -89,5 +90,5 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
                      n_runs=32,
                      params=params,
                      arr=batch_in,
-                     key=None,
+                     key=call_key,
                      deterministic=True)

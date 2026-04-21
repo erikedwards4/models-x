@@ -1,22 +1,22 @@
 """
-Pytest function for gpt2/gpt2_decoder_block_mlp.py.
+Pytest function for gpt2/gpt2.py.
 """
 import pytest
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float
+from jaxtyping import Float, Array
 from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
-from models_x.gpt2.gpt2_decoder_block_mlp import GPT2DecoderBlockMLP
+from models_x.gpt2.gpt2 import GPT2
 
 
-# gpt2_decoder_block_mlp.GPT2DecoderBlockMLP
+# gpt2.GPT2
 @pytest.mark.parametrize("d_model", (768, ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2_decoder_block_mlp(d_model, dtype):
+def test_gpt2(d_model, dtype):
     """
-    Pytest gpt2_decoder_block_mlp.GPT2DecoderBlockMLP.
+    Pytest gpt2.GPT2.
     """
     # Start
     print("")
@@ -28,10 +28,10 @@ def test_gpt2_decoder_block_mlp(d_model, dtype):
                      dtype=dtype)
 
     # Get mdl
-    mlp = GPT2DecoderBlockMLP.from_config(cfg=cfg)
-    assert isinstance(mlp, GPT2DecoderBlockMLP)
-    assert callable(mlp)
-    assert mlp.cfg.dtype == cfg.dtype == dtype
+    mdl = GPT2.from_config(cfg=cfg)
+    assert isinstance(mdl, GPT2)
+    assert callable(mdl)
+    assert mdl.cfg.dtype == cfg.dtype == dtype
 
     # PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
@@ -39,9 +39,9 @@ def test_gpt2_decoder_block_mlp(d_model, dtype):
         jax.random.split(key=prng_key, num=3)
 
     # Get params dict
-    params = mlp.init_params(key=params_key)
-    assert 'c_proj' in params
-    assert isinstance(params['c_proj'], dict)
+    params = mdl.init_params(key=params_key)
+    assert 'wte' in params
+    assert isinstance(params['wte'], dict)
 
     # Check device (should default to GPU if using jaxlib)
     params = jax.device_put(x=params, device=device)
@@ -51,30 +51,32 @@ def test_gpt2_decoder_block_mlp(d_model, dtype):
     # Make input data
     nbatch = 4          # micro-batch size
     ntoks = 16
-    size_in = (nbatch, ntoks, d_model)
-    batch_in = jax.random.normal(key=data_key,
-                                 shape=size_in,
-                                 dtype=dtype,
-                                 ).to_device(device)
+    size_in = (nbatch, ntoks)
+    input_ids = jax.random.randint(key=data_key,
+                                   shape=size_in,
+                                   minval=0,
+                                   maxval=vocab_size,
+                                   dtype=jnp.int32,
+                                   ).to_device(device)
 
     # Test __call__
-    batch_out = mlp(params=params,
-                    arr=batch_in,
+    batch_out = mdl(params=params,
+                    input_ids=input_ids,
                     key=call_key,
                     deterministic=False)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
-    assert batch_out.dtype == batch_in.dtype
-    assert batch_out.device == batch_in.device
-    assert batch_out.shape == batch_in.shape
+    assert batch_out.dtype == jnp.dtype(cfg.dtype)
+    assert batch_out.device == input_ids.device
+    assert batch_out.shape == (nbatch, ntoks, cfg.d_model)
     assert jnp.all(jnp.isfinite(batch_out))
 
     # JIT compile
-    mlp_jit = jax.jit(mlp,
+    mdl_jit = jax.jit(mdl,
                       static_argnames=("deterministic",))
-    batch_out = mlp_jit(params=params,
-                        arr=batch_in,
+    batch_out = mdl_jit(params=params,
+                        input_ids=input_ids,
                         key=call_key,
                         deterministic=False)
 
@@ -82,9 +84,9 @@ def test_gpt2_decoder_block_mlp(d_model, dtype):
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=mlp_jit,
+    profile_callable(fun=mdl_jit,
                      n_runs=32,
                      params=params,
-                     arr=batch_in,
+                     input_ids=input_ids,
                      key=call_key,
                      deterministic=True)

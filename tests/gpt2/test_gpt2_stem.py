@@ -37,9 +37,10 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     assert callable(stem)
     assert stem.cfg.dtype == cfg.dtype == dtype
 
-    # Get PRNG keys
+    # PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
-    params_key, dropout_key = jax.random.split(key=prng_key, num=2)
+    params_key, data_key, call_key = \
+        jax.random.split(key=prng_key, num=3)
 
     # Get params dict
     params = stem.init_params(key=params_key)
@@ -55,7 +56,7 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     nbatch = 4          # micro-batch size
     ntoks = 16
     size_in = (nbatch, ntoks)
-    input_ids = jax.random.randint(key=prng_key,
+    input_ids = jax.random.randint(key=data_key,
                                    shape=size_in,
                                    minval=0,
                                    maxval=vocab_size,
@@ -65,7 +66,7 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     # Test __call__
     batch_out = stem(params=params,
                      input_ids=input_ids,
-                     key=dropout_key,
+                     key=call_key,
                      deterministic=False)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
@@ -80,7 +81,7 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
                        static_argnames=("deterministic",))
     batch_out = stem_jit(params=params,
                          input_ids=input_ids,
-                         key=dropout_key,
+                         key=call_key,
                          deterministic=False)
 
     # See memory usage
@@ -91,5 +92,5 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
                      n_runs=32,
                      params=params,
                      input_ids=input_ids,
-                     key=None,
+                     key=call_key,
                      deterministic=True)

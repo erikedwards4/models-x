@@ -46,27 +46,13 @@ class GPT2Decoder():
         # Config attributes
         nblocks = int(kwargs.get('nblocks', cfg.nblocks))
         d_model = int(kwargs.get('d_model', cfg.d_model))
-        nheads = int(kwargs.get('nheads', cfg.nheads))
-        p_drop_attn = float(kwargs.get('p_drop_attn', cfg.p_drop_attn))
-        p_drop_res = float(kwargs.get('p_drop_res', cfg.p_drop_res))
-        attn_implementation = str(kwargs.get('attn_implementation',
-                                             cfg.attn_implementation))
-        d_inner = int(kwargs.get('d_model', cfg.d_inner))
         lnorm_eps = float(kwargs.get('lnorm_eps', cfg.lnorm_eps))
         dtype = jnp.dtype(kwargs.get('dtype', cfg.dtype))
 
         # List of decoder blocks
         blocks: list[GPT2DecoderBlock] = []
         for _ in range(nblocks):
-            block = GPT2DecoderBlock(d_model=d_model,
-                                     nheads=nheads,
-                                     p_drop_attn=p_drop_attn,
-                                     p_drop_res=p_drop_res,
-                                     attn_implementation=attn_implementation,
-                                     d_inner=d_inner,
-                                     p_drop_mlp=p_drop_res,
-                                     lnorm_eps=lnorm_eps,
-                                     dtype=dtype)
+            block = GPT2DecoderBlock.from_config(cfg=cfg, **kwargs)
 
         # Final layer norm
         lnorm_f = LayerNorm(normalized_shape=d_model,
@@ -100,7 +86,7 @@ class GPT2Decoder():
     def __call__(self: Self,
                  params: dict[str, Any],
                  arr: Float[Array, "B T D"],            # noqa: F722
-                 key: Array | None = None,
+                 key: Array,
                  deterministic: bool = True,
                  ) -> Float[Array, "B T D"]:            # noqa: F722
         """
@@ -108,15 +94,18 @@ class GPT2Decoder():
         T = ntoks (num tokens, input seq len)
         D = d_model (num embeddings, model dim)
         """
+        # PRNG keys
+        keys = jax.random.split(key=key, num=self.nblocks)
+
         # Main Decoder blocks
         for b, block in enumerate(self.blocks):
             arr = block(params=params[f'block{b}'],
                         arr=arr,
-                        key=key,
+                        key=keys[b],
                         deterministic=deterministic)    # B x T x D
 
         # Final LayerNorm
         arr = self.lnorm_f(params=params['lnorm_f'],
                            arr=arr)                     # B x T x D
 
-        return batch                                    # B x T x D
+        return arr                                      # B x T x D

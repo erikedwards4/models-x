@@ -21,7 +21,7 @@ __all__ = ["GPT2DecoderBlockMLP"]
 @dataclass(frozen=True)
 class GPT2DecoderBlockMLP():
     """
-    GPT-2 Decoder block (layer).
+    GPT-2 Decoder block (layer) MLP part.
     """
     # __init__
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
@@ -74,10 +74,10 @@ class GPT2DecoderBlockMLP():
 
     def __call__(self: Self,
                  params: dict[str, Any],
-                 arr: Float[Array, "B T D"],                # noqa: F722
-                 key: Array | None = None,
+                 arr: Float[Array, "B T D"],            # noqa: F722
+                 key: Array,
                  deterministic: bool = True,
-                 ) -> Float[Array, "B T D"]:                # noqa: F722
+                 ) -> Float[Array, "B T D"]:            # noqa: F722
         """
         B = batch_size (or micro-batch size)
         T = ntoks (num tokens, input seq len)
@@ -86,18 +86,18 @@ class GPT2DecoderBlockMLP():
         """
         # Linear 1
         arr = self.c_fc(params=params['c_fc'],
-                        arr=arr)                            # B x T x I
+                        arr=arr)                        # B x T x I
 
         # GELU
-        arr = gelu_new(arr=arr)                             # B x T x I
+        arr = gelu_new(arr=arr)                         # B x T x I
 
         # Linear 2
         arr = self.c_proj(params=params['c_proj'],
-                          arr=arr)                          # B x T x D
+                          arr=arr)                      # B x T x D
 
         # Dropout
         if not deterministic:
-            p = float(getattr(self.cfg, 'p_drop_res', 0.0))
-            arr = dropout(arr=arr, key=key, p=p)            # B x T x D
+            p = float(self.cfg.p_drop_res)
+            arr = dropout(arr=arr, key=key, p=p)        # B x T x D
 
-        return arr                                          # B x T x D
+        return arr                                      # B x T x D
