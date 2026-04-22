@@ -35,11 +35,12 @@ def test_embedding(num_embeddings, embedding_dim,
     assert callable(mdl)
     assert mdl.dtype == dtype
 
-    # Get PRNG key
+    # PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
+    params_key, data_key = jax.random.split(key=prng_key, num=2)
 
     # Get params dict
-    params = mdl.init_params(key=prng_key)
+    params = mdl.init_params(key=params_key)
     assert 'w' in params
     assert isinstance(params['w'], Array)
     assert params['w'].dtype == dtype
@@ -54,7 +55,7 @@ def test_embedding(num_embeddings, embedding_dim,
     nbatch = 4          # micro-batch size
     ntoks = 1024
     size_in = (nbatch, ntoks)
-    input_ids = jax.random.randint(key=prng_key,
+    input_ids = jax.random.randint(key=data_key,
                                    shape=size_in,
                                    minval=0,
                                    maxval=num_embeddings,

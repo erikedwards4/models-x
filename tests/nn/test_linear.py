@@ -39,11 +39,12 @@ def test_linear(in_features, out_features, bias,
     assert callable(mdl)
     assert mdl.dtype == dtype
 
-    # Get PRNG key
+    # PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
+    params_key, data_key = jax.random.split(key=prng_key, num=2)
 
     # Get params dict
-    params = mdl.init_params(key=prng_key)
+    params = mdl.init_params(key=params_key)
     assert 'w' in params
     assert isinstance(params['w'], Array)
     assert params['w'].dtype == dtype
@@ -63,7 +64,7 @@ def test_linear(in_features, out_features, bias,
     nbatch = 4          # micro-batch size
     ntoks = 16
     size_in = (nbatch, ntoks, in_features)
-    batch_in = jax.random.normal(key=prng_key,
+    batch_in = jax.random.normal(key=data_key,
                                  shape=size_in,
                                  dtype=dtype,
                                  ).to_device(device)

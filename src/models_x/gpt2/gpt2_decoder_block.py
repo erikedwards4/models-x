@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Int, Array
+from jaxtyping import Float, Array
 from models_x.nn.layer_norm import LayerNorm
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_decoder_block_attn import GPT2DecoderBlockAttn
@@ -29,7 +29,8 @@ class GPT2DecoderBlock():
     cfg: GPT2Config = field(metadata=metadata)
     lnorm1: LayerNorm = field(metadata=metadata)
     lnorm2: LayerNorm = field(metadata=metadata)
-    attn: GPT2DecoderBlockAttn = field(metadata=metadata)
+    attn: GPT2DecoderBlockAttn | GPT2DecoderBlockSDPA \
+        = field(metadata=metadata)
     mlp: GPT2DecoderBlockMLP = field(metadata=metadata)
 
     @classmethod

@@ -34,11 +34,12 @@ def test_layer_norm(normalized_shape, eps, bias, dtype):
     assert callable(mdl)
     assert mdl.dtype == dtype
 
-    # Get PRNG key
+    # PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
+    params_key, data_key = jax.random.split(key=prng_key, num=2)
 
     # Get params dict
-    params = mdl.init_params(prng_key)
+    params = mdl.init_params(params_key)
     assert 'w' in params
     assert isinstance(params['w'], Array)
     assert params['w'].dtype == dtype
@@ -58,7 +59,7 @@ def test_layer_norm(normalized_shape, eps, bias, dtype):
     nbatch = 4          # micro-batch size
     ntoks = 1024
     size_in = (nbatch, ntoks, normalized_shape)
-    batch_in = jax.random.normal(key=prng_key,
+    batch_in = jax.random.normal(key=data_key,
                                  shape=size_in,
                                  dtype=dtype,
                                  ).to_device(device)

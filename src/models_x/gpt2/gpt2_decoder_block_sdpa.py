@@ -2,6 +2,16 @@
 GPT-2 Transformer Decoder block attention,
 which is multi-head attention (MHA) and
 uses scaled dot-product attention (SDPA).
+
+Dropout is not supported in jax.nn.dot_product_attention,
+so only use this if you don't need attention dropout
+(the residual dropout still works), or use this only
+for inference. Future releases may change this, so
+leaving the code as is to await.
+
+Also: after jax.jit, this is not faster than the
+manual implementation (JIT already fuses ver well).
+So, use gpt_decoder_block_attn.py.
 """
 
 from typing import Self, Any
@@ -14,12 +24,12 @@ from models_x.fn.dropout import dropout
 from models_x.nn.linear import Linear
 from models_x.gpt2.gpt2_config import GPT2Config
 
-__all__ = ["GPT2DecoderBlockAttn"]
+__all__ = ["GPT2DecoderBlockSDPA"]
 
 
 @register_dataclass
 @dataclass(frozen=True)
-class GPT2DecoderBlockAttn():
+class GPT2DecoderBlockSDPA():
     """
     GPT-2 Decoder block (layer) attention part.
     """
@@ -86,6 +96,12 @@ class GPT2DecoderBlockAttn():
         # Input shape
         nbatch, ntoks, d_model = arr.shape
 
+        # Dropouts
+        # Change later when attn dropout becomes supported!
+        key1, key2 = jax.random.split(key=key, num=2)
+        p = 0.0 if deterministic else \
+            float(self.cfg.p_drop_attn)
+
         # Linear 1: project -> queries, keys, values
         qkv = self.qkv_proj(params=params['qkv_proj'],
                             arr=arr)                        # B x T x D*3
@@ -93,39 +109,20 @@ class GPT2DecoderBlockAttn():
         # Reshape and split
         sh = nbatch, ntoks, 3, self.cfg.nheads, self.cfg.d_head
         qkv = qkv.reshape(sh)                           # B x H x 3 x T x Dh
-        qkv = qkv.transpose(2, 0, 3, 1, 4)              # 3 x B x H x T x Dh
-        q, k, v = qkv[0], qkv[1], qkv[2]                    # B x H x T x Dh
+        qkv = qkv.transpose(2, 0, 1, 3, 4)              # 3 x B x T x H x Dh
+        q, k, v = qkv[0], qkv[1], qkv[2]                    # B x T x H x Dh
 
-        # SDPA scores
-        # attn_scores = \
-        #     jnp.einsum('bhid,bhjd->bhij', q, k) \
-        #     * self.cfg.scale                              # B x H x T x T
-        kt = k.swapaxes(2, 3)                               # B x H x Dh x T
-        attn_scores = jnp.matmul(q, kt) * self.cfg.scale    # B x H x T x T
+        # SDPA
+        arr = jax.nn.dot_product_attention(query=q,
+                                           key=k,
+                                           value=v,
+                                           mask=None,
+                                           scale=self.cfg.scale,
+                                           is_causal=True,
+                                           implementation="xla",
+                                           )                # B x T x H x Dh
 
-        # Causal mask
-        causal_mask = jnp.ones(shape=(1, 1, ntoks, ntoks),
-                               dtype=jnp.bool_)             # 1 x 1 x T x T
-        causal_mask = jnp.tril(m=causal_mask, k=0)          # 1 x 1 x T x T
-
-        # Apply mask and softmax
-        attn_weights = jax.nn.softmax(x=attn_scores,
-                                      axis=-1,
-                                      where=causal_mask)    # B x H x T x T
-
-        # Dropout 1: "attention" dropout
-        if not deterministic:
-            key1, key2 = jax.random.split(key=key, num=2)
-            p = float(self.cfg.p_drop_attn)
-            attn_weights = \
-                dropout(arr=attn_weights, key=key1, p=p)    # B x H x T x T
-
-        # Attn-weighted sum of values and reshape
-        arr = jnp.matmul(attn_weights, v)                   # B x H x T x Dh
-        arr = arr.transpose(0, 2, 1, 3)                     # B x T x H x Dh
-        # arr = jnp.einsum('bhij,bhid->bjhd',
-        #                  attn_weights,
-        #                  v)                               # B x T x H x Dh
+        # Reshape
         arr = arr.reshape(nbatch, ntoks, d_model)           # B x T x D
 
         # Linear 2: Output projection

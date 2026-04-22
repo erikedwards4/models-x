@@ -44,7 +44,7 @@ class LayerNorm():
             raise ValueError("eps out of expected range")
 
     def init_params(self: Self,
-                    _key: Array,
+                    _key: Array | None = None,
                     ) -> dict[str, Array]:
         """
         Initialize the parameters dict.

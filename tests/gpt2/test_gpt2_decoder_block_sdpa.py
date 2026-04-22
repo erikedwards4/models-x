@@ -1,5 +1,5 @@
 """
-Pytest function for gpt2/gpt2_decoder_block.py.
+Pytest function for gpt2/gpt2_decoder_block_sdpa.py.
 """
 import pytest
 import jax
@@ -8,16 +8,15 @@ from jaxtyping import Float
 from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
-from models_x.gpt2.gpt2_decoder_block import GPT2DecoderBlock
+from models_x.gpt2.gpt2_decoder_block_sdpa import GPT2DecoderBlockSDPA
 
 
-# gpt2_decoder_block.GPT2DecoderBlock
+# gpt2_decoder_block_sdpa.GPT2DecoderBlockSDPA
 @pytest.mark.parametrize("d_model", (768, ))
-@pytest.mark.parametrize("attn_implementation", ("attn", ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2_decoder_block(d_model, attn_implementation, dtype):
+def test_gpt2_decoder_block_sdpa(d_model, dtype):
     """
-    Pytest gpt2_decoder_block.GPT2DecoderBlock.
+    Pytest gpt2_decoder_block_sdpa.GPT2DecoderBlockSDPA.
     """
     # Start
     print("")
@@ -26,17 +25,13 @@ def test_gpt2_decoder_block(d_model, attn_implementation, dtype):
 
     # Get config
     cfg = GPT2Config(d_model=d_model,
-                     attn_implementation=attn_implementation,
                      dtype=dtype)
 
     # Get mdl
-    blk = GPT2DecoderBlock.from_config(cfg=cfg,
-                                       d_model=d_model,
-                                       attn_implementation=attn_implementation,
-                                       dtype=dtype)
-    assert isinstance(blk, GPT2DecoderBlock)
-    assert callable(blk)
-    assert blk.cfg.dtype == cfg.dtype == dtype
+    mha = GPT2DecoderBlockSDPA.from_config(cfg=cfg)
+    assert isinstance(mha, GPT2DecoderBlockSDPA)
+    assert callable(mha)
+    assert mha.cfg.dtype == cfg.dtype == dtype
 
     # PRNG keys
     prng_key = jax.random.PRNGKey(seed=0)
@@ -44,9 +39,9 @@ def test_gpt2_decoder_block(d_model, attn_implementation, dtype):
         jax.random.split(key=prng_key, num=3)
 
     # Get params dict
-    params = blk.init_params(key=params_key)
-    assert 'attn' in params
-    assert isinstance(params['attn'], dict)
+    params = mha.init_params(key=params_key)
+    assert 'out_proj' in params
+    assert isinstance(params['out_proj'], dict)
 
     # Check device (should default to GPU if using jaxlib)
     params = jax.device_put(x=params, device=device)
@@ -63,7 +58,7 @@ def test_gpt2_decoder_block(d_model, attn_implementation, dtype):
                                  ).to_device(device)
 
     # Test __call__
-    batch_out = blk(params=params,
+    batch_out = mha(params=params,
                     arr=batch_in,
                     key=call_key,
                     deterministic=False)
@@ -76,9 +71,9 @@ def test_gpt2_decoder_block(d_model, attn_implementation, dtype):
     assert jnp.all(jnp.isfinite(batch_out))
 
     # JIT compile
-    blk_jit = jax.jit(blk,
+    mha_jit = jax.jit(mha,
                       static_argnames=("deterministic",))
-    batch_out = blk_jit(params=params,
+    batch_out = mha_jit(params=params,
                         arr=batch_in,
                         key=call_key,
                         deterministic=False)
@@ -87,7 +82,7 @@ def test_gpt2_decoder_block(d_model, attn_implementation, dtype):
     print_memory_stats(label="after")
 
     # Profile
-    profile_callable(fun=blk_jit,
+    profile_callable(fun=mha_jit,
                      n_runs=32,
                      params=params,
                      arr=batch_in,
