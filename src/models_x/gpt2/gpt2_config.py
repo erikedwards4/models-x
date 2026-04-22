@@ -1,7 +1,8 @@
 """
-Config for GPT-2 in JAX.
+Config for GPT-2 using JAX.
 
-This uses Python Standard Library dataclasses
+This uses dataclasses from the Python Standard Library,
+which is the idiomatic, pure-JAX approach.
 """
 
 from typing import Self, Any
@@ -17,7 +18,7 @@ __all__ = ["GPT2Config"]
 @dataclass(frozen=True)
 class GPT2Config():
     """
-    Configs for JAX GPT-2 model.
+    Configs for GPT-2 model in JAX.
     """
     # Metadata (for jax.tree_util setup)
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
