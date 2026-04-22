@@ -13,7 +13,7 @@ from models_x.gpt2.gpt2_stem import GPT2Stem
 
 # gpt2_stem.GPT2Stem
 @pytest.mark.parametrize("vocab_size", (50257, ))
-@pytest.mark.parametrize("n_positions", (1024, ))
+@pytest.mark.parametrize("n_positions", (512, ))
 @pytest.mark.parametrize("d_model", (768, ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
 def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
@@ -54,7 +54,7 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 16
+    ntoks = 512
     size_in = (nbatch, ntoks)
     input_ids = jax.random.randint(key=data_key,
                                    shape=size_in,

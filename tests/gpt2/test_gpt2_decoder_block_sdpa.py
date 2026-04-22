@@ -50,7 +50,7 @@ def test_gpt2_decoder_block_sdpa(d_model, dtype):
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 16
+    ntoks = 512
     size_in = (nbatch, ntoks, d_model)
     batch_in = jax.random.normal(key=data_key,
                                  shape=size_in,

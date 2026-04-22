@@ -52,7 +52,7 @@ def test_gpt2_decoder(nblocks, attn_implementation, dtype):
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 16
+    ntoks = 512
     size_in = (nbatch, ntoks, cfg.d_model)
     batch_in = jax.random.normal(key=data_key,
                                  shape=size_in,

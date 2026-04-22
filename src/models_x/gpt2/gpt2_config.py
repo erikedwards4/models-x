@@ -1,11 +1,16 @@
 """
-Config for GPT-2 using JAX.
+Config for the GPT-2 model using JAX.
 
 This uses dataclasses from the Python Standard Library,
-which is the idiomatic, pure-JAX approach.
+as managed by jax.tree_util, which is the idiomatic JAX
+approach. The configs herein propagate through the model
+hierarchy as the central, single source of truth (with
+overrides by kwargs possible for every class).
+
+In the future, this could read from a config.yaml.
 """
 
-from typing import Self, Any
+from typing import Self
 from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 from jax.typing import DTypeLike
@@ -18,7 +23,7 @@ __all__ = ["GPT2Config"]
 @dataclass(frozen=True)
 class GPT2Config():
     """
-    Configs for GPT-2 model in JAX.
+    Configs for the GPT-2 model in JAX.
     """
     # Metadata (for jax.tree_util setup)
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
@@ -42,12 +47,12 @@ class GPT2Config():
 
     # Attn implementation ('sdpa' vs. 'eager' or 'attn')
     # Note: 'sdpa' does not support attn_dropout for JAX
-    attn_implementation: str = "attn"
+    attn_implementation: str = field(default="attn", metadata=metadata)
 
     # Helpers for derived properties
     @property
     def d_inner(self: Self) -> int:
-        """Sets d_inner for the GTP2DecoderBlockMLP."""
+        """Sets d_inner for the GPT2DecoderBlockMLP."""
         return 4 * self.d_model
 
     @property
