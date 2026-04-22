@@ -4,7 +4,7 @@ Pytest function for mems/mems_stem.py.
 import pytest
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Array
+from jaxtyping import Float
 from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
 from models_x.mems.mems_config import MeMsConfig
@@ -13,10 +13,9 @@ from models_x.mems.mems_stem import MeMsStem
 
 # mems_stem.MeMsStem
 @pytest.mark.parametrize("vocab_size", (50257, ))
-@pytest.mark.parametrize("n_positions", (512, ))
 @pytest.mark.parametrize("d_model", (768, ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_mems_stem(vocab_size, n_positions, d_model, dtype):
+def test_mems_stem(vocab_size, d_model, dtype):
     """
     Pytest mems_stem.MeMsStem.
     """
@@ -27,7 +26,6 @@ def test_mems_stem(vocab_size, n_positions, d_model, dtype):
 
     # Get config
     cfg = MeMsConfig(vocab_size=vocab_size,
-                     n_positions=n_positions,
                      d_model=d_model,
                      dtype=dtype)
 
