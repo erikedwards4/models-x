@@ -150,19 +150,18 @@ But we are using uv, so we'll use uv add, and Google AI recommends the following
 ```
 uv add "jax[cuda13_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 ```
-Note that this will install reasonably new versions of Numpy, Scipy, opt-einsum and ml-dtypes. It's better to let uv and JAX choose these versions rather than to uv add them first with some other versions. Conflicts otherwise arise easily.  
-
-Also add the better static typing for JAX:  
-```
-uv add jaxtyping typeguard
-```
-
-This seems to work, but later I only find CpuDevice(id=0) for jax.devices().  
-So, later I did:  
+This seemed to work, but later I only found CpuDevice(id=0) for jax.devices().  
+So, then I tried:  
 ```
 uv add -U "jax[cuda13]"
 ```
-Now I get CudaDevice(id=0) for jax.devices()!
+Now I get CudaDevice(id=0) for jax.devices(), it worked!  
+
+Also add Optax for training, and the better static typing for JAX:  
+```
+uv add -U optax
+uv add -U jaxtyping typeguard
+```
 
 ## Install packages with uv
 Now uv add other Python packages with the venv activated:  
@@ -234,7 +233,7 @@ uv tree
 It can be helpful to look at this before/after uv adds, so you can monitor the growth of the dependency tree.  
 
 ## Build backend for uv
-Finally, we add a build backend to the pyproject.toml file:  
+Finally, we (optionally) add a build backend to the pyproject.toml file:  
 ```
 echo "" >> pyproject.toml
 echo "[build-system]" >> pyproject.toml
@@ -266,5 +265,4 @@ Can also be good to clean:
 uv cache clean
 ```
 
-Now we have a src layout with an editable install, which is the industry-standard for a Python ML repo.  
-But the immediate purpose was to allow 'from models_x.xxx.xxx import xxx' within the Python code.  
+Now we have a src layout with an editable install, which is the industry-standard for a Python ML repo. Locally, just use as: from models_x.xxx.xxx import xxx.  
