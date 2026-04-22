@@ -10,7 +10,6 @@ from jax.tree_util import register_dataclass
 import jax
 import jax.numpy as jnp
 from jaxtyping import Float, Array
-from models_x.fn.softmax import softmax
 from models_x.fn.dropout import dropout
 from models_x.nn.linear import Linear
 from models_x.gpt2.gpt2_config import GPT2Config
@@ -85,16 +84,14 @@ class GPT2DecoderBlockAttn():
         """
         # Input shape
         nbatch, ntoks, d_model = arr.shape
-        # d_head = int(self.cfg.d_head)
-        # nheads = int(self.cfg.nheads)
 
         # Linear 1: project -> queries, keys, values
         qkv = self.qkv_proj(params=params['qkv_proj'],
                             arr=arr)                        # B x T x D*3
 
         # Reshape for SDPA
-        shape = nbatch, ntoks, 3, self.cfg.nheads, self.cfg.d_head
-        qkv = qkv.reshape(shape).transpose(0, 3, 2, 1, 4)   # B x H x 3 x T x Dh
+        sh = nbatch, ntoks, 3, self.cfg.nheads, self.cfg.d_head
+        qkv = qkv.reshape(sh).transpose(0, 3, 2, 1, 4)  # B x H x 3 x T x Dh
         q = qkv[:, :, 0]                                    # B x H x T x Dh
         k = qkv[:, :, 1]                                    # B x H x T x Dh
         v = qkv[:, :, 2]                                    # B x H x T x Dh
@@ -102,23 +99,19 @@ class GPT2DecoderBlockAttn():
         # SDPA scores
         # attn_scores = \
         #     jnp.einsum('bhtd,bhtd->bhtt', q, k) \
-        #     * self.cfg.scale                             # B x H x T x T
-        kt = k.swapaxes(2, 3)                              # B x H x Dh x T
-        attn_scores = jnp.matmul(q, kt) * self.cfg.scale   # B x H x T x T
+        #     * self.cfg.scale                              # B x H x T x T
+        kt = k.swapaxes(2, 3)                               # B x H x Dh x T
+        attn_scores = jnp.matmul(q, kt) * self.cfg.scale    # B x H x T x T
 
         # Causal mask
-        mask = jnp.ones(shape=(1, 1, ntoks, ntoks),
-                        dtype=jnp.bool_)                    # 1 x 1 x T x T
-        mask = jnp.tril(m=mask, k=0)                        # 1 x 1 x T x T
+        causal_mask = jnp.ones(shape=(1, 1, ntoks, ntoks),
+                               dtype=jnp.bool_)             # 1 x 1 x T x T
+        causal_mask = jnp.tril(m=causal_mask, k=0)          # 1 x 1 x T x T
 
         # Apply mask and softmax
-        # attn_weights = jax.nn.softmax(x=attn_scores,
-        #                               axis=-1,
-        #                               where=mask,
-        #                               initial=-jnp.inf)   # B x H x T x T
-        attn_scores = \
-            jnp.where(mask, attn_scores, -jnp.inf)          # B x H x T x T
-        attn_weights = softmax(arr=attn_scores, axis=-1)    # B x H x T x T
+        attn_weights = jax.nn.softmax(x=attn_scores,
+                                      axis=-1,
+                                      where=causal_mask)    # B x H x T x T
 
         # Dropout 1 ("attention" dropout)
         if not deterministic:
@@ -128,12 +121,11 @@ class GPT2DecoderBlockAttn():
                 dropout(arr=attn_weights, key=key1, p=p)    # B x H x T x T
 
         # Attn-weighted sum of values and reshape
-        # arr = jnp.einsum('bhtt,bhtd->bthd',
-        #                  attn_weights,
-        #                  v)                               # B x T x H x Dh
-        # arr = arr.reshape(nbatch, ntoks, d_model)         # B x T x D
-        arr = jnp.matmul(attn_weights, v)                   # B x H x T x Dh
-        arr = arr.transpose(0, 2, 1, 3)                     # B x T x H x Dh
+        # arr = jnp.matmul(attn_weights, v)                 # B x H x T x Dh
+        # arr = arr.transpose(0, 2, 1, 3)                   # B x T x H x Dh
+        arr = jnp.einsum('bhtt,bhtd->bthd',
+                         attn_weights,
+                         v)                                 # B x T x H x Dh
         arr = arr.reshape(nbatch, ntoks, d_model)           # B x T x D
 
         # Linear 2: Output projection
