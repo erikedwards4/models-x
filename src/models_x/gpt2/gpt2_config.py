@@ -38,10 +38,9 @@ class GPT2Config():
     p_drop_stem: float = field(default=0.1, metadata=metadata)
     p_drop_attn: float = field(default=0.1, metadata=metadata)
     p_drop_res: float = field(default=0.1, metadata=metadata)
-    # p_drop_mlp: float = field(default=0.1, metadata=metadata)
     lnorm_eps: float = field(default=1e-5, metadata=metadata)
 
-    # Attn implementation
+    # Attn implementation ('sdpa' vs. 'eager' or 'attn')
     # Note: 'sdpa' does not support attn_dropout for JAX
     attn_implementation: str = "attn"
 
