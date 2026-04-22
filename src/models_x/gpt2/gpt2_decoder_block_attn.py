@@ -81,6 +81,7 @@ class GPT2DecoderBlockAttn():
         B = batch_size (or micro-batch size)
         T = ntoks (num tokens, input seq len)
         D = d_model (num embeddings, model dim)
+        H = nheads (num attn heads): H * Dh = D
         """
         # Input shape
         nbatch, ntoks, d_model = arr.shape
@@ -89,7 +90,7 @@ class GPT2DecoderBlockAttn():
         qkv = self.qkv_proj(params=params['qkv_proj'],
                             arr=arr)                        # B x T x D*3
 
-        # Reshape for SDPA
+        # Reshape and split
         sh = nbatch, ntoks, 3, self.cfg.nheads, self.cfg.d_head
         qkv = qkv.reshape(sh).transpose(0, 3, 2, 1, 4)  # B x H x 3 x T x Dh
         q = qkv[:, :, 0]                                    # B x H x T x Dh
@@ -98,7 +99,7 @@ class GPT2DecoderBlockAttn():
 
         # SDPA scores
         # attn_scores = \
-        #     jnp.einsum('bhtd,bhtd->bhtt', q, k) \
+        #     jnp.einsum('bhid,bhjd->bhij', q, k) \
         #     * self.cfg.scale                              # B x H x T x T
         kt = k.swapaxes(2, 3)                               # B x H x Dh x T
         attn_scores = jnp.matmul(q, kt) * self.cfg.scale    # B x H x T x T
@@ -113,7 +114,7 @@ class GPT2DecoderBlockAttn():
                                       axis=-1,
                                       where=causal_mask)    # B x H x T x T
 
-        # Dropout 1 ("attention" dropout)
+        # Dropout 1: "attention" dropout
         if not deterministic:
             key1, key2 = jax.random.split(key=key, num=2)
             p = float(self.cfg.p_drop_attn)
@@ -121,18 +122,18 @@ class GPT2DecoderBlockAttn():
                 dropout(arr=attn_weights, key=key1, p=p)    # B x H x T x T
 
         # Attn-weighted sum of values and reshape
-        # arr = jnp.matmul(attn_weights, v)                 # B x H x T x Dh
-        # arr = arr.transpose(0, 2, 1, 3)                   # B x T x H x Dh
-        arr = jnp.einsum('bhtt,bhtd->bthd',
-                         attn_weights,
-                         v)                                 # B x T x H x Dh
+        arr = jnp.matmul(attn_weights, v)                   # B x H x T x Dh
+        arr = arr.transpose(0, 2, 1, 3)                     # B x T x H x Dh
+        # arr = jnp.einsum('bhij,bhid->bjhd',
+        #                  attn_weights,
+        #                  v)                               # B x T x H x Dh
         arr = arr.reshape(nbatch, ntoks, d_model)           # B x T x D
 
         # Linear 2: Output projection
         arr = self.out_proj(params=params['out_proj'],
                             arr=arr)                        # B x T x D
 
-        # Dropout 2 ("residual" dropout)
+        # Dropout 2: "residual" dropout
         if not deterministic:
             p = float(self.cfg.p_drop_res)
             arr = dropout(arr=arr, key=key2, p=p)           # B x T x D

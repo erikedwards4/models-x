@@ -40,8 +40,8 @@ def test_gpt2_decoder_block_attn(d_model, dtype):
 
     # Get params dict
     params = mha.init_params(key=params_key)
-    assert 'c_proj' in params
-    assert isinstance(params['c_proj'], dict)
+    assert 'out_proj' in params
+    assert isinstance(params['out_proj'], dict)
 
     # Check device (should default to GPU if using jaxlib)
     params = jax.device_put(x=params, device=device)
