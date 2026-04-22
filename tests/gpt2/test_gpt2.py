@@ -4,7 +4,7 @@ Pytest function for gpt2/gpt2.py.
 import pytest
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Array
+from jaxtyping import Float
 from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
@@ -12,9 +12,10 @@ from models_x.gpt2.gpt2 import GPT2
 
 
 # gpt2.GPT2
-@pytest.mark.parametrize("d_model", (768, ))
+@pytest.mark.parametrize("nblocks", (4, ))
+@pytest.mark.parametrize("attn_implementation", ("eager", ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2(d_model, dtype):
+def test_gpt2(nblocks, attn_implementation, dtype):
     """
     Pytest gpt2.GPT2.
     """
@@ -24,7 +25,8 @@ def test_gpt2(d_model, dtype):
     print_memory_stats(label="start")
 
     # Get config
-    cfg = GPT2Config(d_model=d_model,
+    cfg = GPT2Config(nblocks=nblocks,
+                     attn_implementation=attn_implementation,
                      dtype=dtype)
 
     # Get mdl
@@ -40,8 +42,8 @@ def test_gpt2(d_model, dtype):
 
     # Get params dict
     params = mdl.init_params(key=params_key)
-    assert 'wte' in params
-    assert isinstance(params['wte'], dict)
+    assert 'stem' in params
+    assert isinstance(params['stem'], dict)
 
     # Check device (should default to GPU if using jaxlib)
     params = jax.device_put(x=params, device=device)
@@ -55,7 +57,7 @@ def test_gpt2(d_model, dtype):
     input_ids = jax.random.randint(key=data_key,
                                    shape=size_in,
                                    minval=0,
-                                   maxval=vocab_size,
+                                   maxval=cfg.vocab_size,
                                    dtype=jnp.int32,
                                    ).to_device(device)
 

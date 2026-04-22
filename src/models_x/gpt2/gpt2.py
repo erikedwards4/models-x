@@ -8,7 +8,6 @@ from typing import Self, Any
 from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 import jax
-import jax.numpy as jnp
 from jaxtyping import Float, Int, Array
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_stem import GPT2Stem
@@ -74,10 +73,10 @@ class GPT2():
 
         # Word embeddings
         word_emb = self.stem(params=params['stem'],
-                             arr=input_ids,
+                             input_ids=input_ids,
                              key=key1,
                              deterministic=deterministic)   # B x T x D
-        
+
         # Final embeddings
         batch = self.decoder(params=params['decoder'],
                              arr=word_emb,

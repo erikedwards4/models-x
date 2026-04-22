@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Int, Array
+from jaxtyping import Float, Array
 from models_x.nn.layer_norm import LayerNorm
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_decoder_block import GPT2DecoderBlock
@@ -32,7 +32,7 @@ class GPT2Decoder():
     # __init__
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
     cfg: GPT2Config = field(metadata=metadata)
-    blocks: list[GPT2DecoderBlock] = field(metadata=metadata)
+    blocks: tuple[GPT2DecoderBlock, ...] = field(metadata=metadata)
     lnorm_f: LayerNorm = field(metadata=metadata)
 
     @classmethod
@@ -53,6 +53,7 @@ class GPT2Decoder():
         blocks: list[GPT2DecoderBlock] = []
         for _ in range(nblocks):
             block = GPT2DecoderBlock.from_config(cfg=cfg, **kwargs)
+            blocks.append(block)
 
         # Final layer norm
         lnorm_f = LayerNorm(normalized_shape=d_model,
@@ -60,7 +61,7 @@ class GPT2Decoder():
                             bias=True,
                             dtype=dtype)
 
-        return cls(cfg=cfg, blocks=blocks, lnorm_f=lnorm_f)
+        return cls(cfg=cfg, blocks=tuple(blocks), lnorm_f=lnorm_f)
 
     def init_params(self: Self,
                     key: Array,
@@ -69,7 +70,7 @@ class GPT2Decoder():
         Initialize the parameters dict.
         """
         # PRNG keys
-        keys = jax.random.split(key=key, num=self.nblocks)
+        keys = jax.random.split(key=key, num=len(self.blocks))
 
         # Params dict
         params: dict[str, Any] = {}
@@ -95,7 +96,7 @@ class GPT2Decoder():
         D = d_model (num embeddings, model dim)
         """
         # PRNG keys
-        keys = jax.random.split(key=key, num=self.nblocks)
+        keys = jax.random.split(key=key, num=len(self.blocks))
 
         # Main Decoder blocks
         for b, block in enumerate(self.blocks):

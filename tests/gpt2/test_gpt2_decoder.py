@@ -4,7 +4,7 @@ Pytest function for gpt2/gpt2_decoder.py.
 import pytest
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Array
+from jaxtyping import Float
 from models_x.utils.profile_callable import profile_callable
 from models_x.utils.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
@@ -12,11 +12,10 @@ from models_x.gpt2.gpt2_decoder import GPT2Decoder
 
 
 # gpt2_decoder.GPT2Decoder
-@pytest.mark.parametrize("nblocks", (6, ))
-@pytest.mark.parametrize("d_model", (768, ))
-@pytest.mark.parametrize("attn_implementation", ("sdpa", ))
+@pytest.mark.parametrize("nblocks", (4, ))
+@pytest.mark.parametrize("attn_implementation", ("eager", ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
+def test_gpt2_decoder(nblocks, attn_implementation, dtype):
     """
     Pytest gpt2_decoder.GPT2Decoder.
     """
@@ -27,7 +26,6 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
 
     # Get config
     cfg = GPT2Config(nblocks=nblocks,
-                     d_model=d_model,
                      attn_implementation=attn_implementation,
                      dtype=dtype)
 
@@ -44,8 +42,8 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
 
     # Get params dict
     params = decoder.init_params(key=params_key)
-    assert 'wte' in params
-    assert isinstance(params['wte'], dict)
+    assert 'lnorm_f' in params
+    assert isinstance(params['lnorm_f'], dict)
 
     # Check device (should default to GPU if using jaxlib)
     params = jax.device_put(x=params, device=device)
@@ -55,7 +53,7 @@ def test_gpt2_decoder(nblocks, d_model, attn_implementation, dtype):
     # Make input data
     nbatch = 4          # micro-batch size
     ntoks = 16
-    size_in = (nbatch, ntoks, d_model)
+    size_in = (nbatch, ntoks, cfg.d_model)
     batch_in = jax.random.normal(key=data_key,
                                  shape=size_in,
                                  dtype=dtype,
