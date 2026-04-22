@@ -25,7 +25,7 @@ class MeMsConfig():
     """
     Configs for the Memory Mosaics model in JAX.
     """
-    # Metadata (for jax.tree_util setup)
+    # Metadata (for jax.tree_util)
     metadata = dict(static=True)    # pylint: disable=use-dict-literal
 
     # General
