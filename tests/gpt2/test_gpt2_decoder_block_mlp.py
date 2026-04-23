@@ -88,3 +88,13 @@ def test_gpt2_decoder_block_mlp(d_model, dtype):
                      arr=batch_in,
                      key=call_key,
                      deterministic=True)
+
+    # JAXPR
+    fun = partial(mha,
+                  params=params,
+                  arr=batch_in,
+                  key=prng_key)
+    jaxpr = jax.make_jaxpr(fun=fun)()
+    # print(f"JAXPR:\n{jaxpr}")
+    nchars, nlines = len(str(jaxpr)), len(str(jaxpr).splitlines())
+    print(f"JAXPR: nchars={nchars}, nlines={nlines}")

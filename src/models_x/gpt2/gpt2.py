@@ -83,4 +83,13 @@ class GPT2():
                              key=key2,
                              deterministic=deterministic)   # B x T x D
 
+        # Logits
+        # logits = batch @ params['stem']['wte'].T          # B x T x D
+
+        # Logits (slightly faster, fused @ and .T)
+        # ds = (((2,), (1,)), ((), ()))
+        # logits = jax.lax.dot_general(lhs=batch, 
+        #                              rhs=params['stem']['wte'], 
+        #                              dimension_numbers=ds)  # B x T x D
+
         return batch                                        # B x T x D

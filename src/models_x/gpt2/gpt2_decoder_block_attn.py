@@ -96,12 +96,20 @@ class GPT2DecoderBlockAttn():
         qkv = qkv.transpose(2, 0, 3, 1, 4)              # 3 x B x H x T x Dh
         q, k, v = qkv[0], qkv[1], qkv[2]                    # B x H x T x Dh
 
+        # Scale Q 1st --> numerical accuracy, speed
+        qs = q * float(self.cfg.scale)                      # B x H x T x Dh
+
         # SDPA scores
-        # attn_scores = \
-        #     jnp.einsum('bhid,bhjd->bhij', q, k) \
-        #     * self.cfg.scale                              # B x H x T x T
-        kt = k.swapaxes(2, 3)                               # B x H x Dh x T
-        attn_scores = jnp.matmul(q, kt) * self.cfg.scale    # B x H x T x T
+        # attn_scores = qs @ k.swapaxes(2, 3)               # B x H x T x T
+        # attn_scores = jnp.einsum('bhid,bhjd->bhij', qs, k)  # B x H x T x T
+
+        # SDPA scores: slightly more optimal
+        # (but prob identical after compilation)
+        ds = (((3, ), (3, )), ((0, 1), (0, 1)))
+        attn_scores = \
+            jax.lax.dot_general(lhs=qs,
+                                rhs=k,
+                                dimension_numbers=ds)       # B x H x T x T
 
         # Causal mask
         causal_mask = jnp.ones(shape=(1, 1, ntoks, ntoks),
