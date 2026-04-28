@@ -49,7 +49,7 @@ class MeMsConfig():
     # Note: 'sdpa' does not support attn_dropout for JAX
     attn_implementation: str = field(default="attn", metadata=metadata)
 
-    # Helpers for derived properties
+    # Derived properties
     @property
     def d_inner(self: Self) -> int:
         """Sets d_inner for the MeMsDecoderBlockMLP."""

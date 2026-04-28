@@ -63,7 +63,7 @@ git push --set-upstream origin master
 ```
 For the last step, you may have to add the .ssh key in the repo in GitHub (Settings > Deploy keys), do gh auth login, etc.  
 
-# Virtual env
+## Virtual env
 Next make the venv (virtual environment), which uv places in the project dir:  
 ```
 uv python pin 3.14

@@ -5,15 +5,15 @@ import pytest
 import jax
 import jax.numpy as jnp
 from jaxtyping import Float
-from models_x.utils.profile_callable import profile_callable
-from models_x.utils.print_memory_stats import print_memory_stats
+from models_x.util.profile_callable import profile_callable
+from models_x.util.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_stem import GPT2Stem
 
 
 # gpt2_stem.GPT2Stem
 @pytest.mark.parametrize("vocab_size", (50257, ))
-@pytest.mark.parametrize("n_positions", (512, ))
+@pytest.mark.parametrize("n_positions", (1024, ))
 @pytest.mark.parametrize("d_model", (768, ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
 def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
@@ -54,9 +54,9 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 512
+    ntoks = 1024
     size_in = (nbatch, ntoks)
-    input_ids = jax.random.randint(key=data_key,
+    token_ids = jax.random.randint(key=data_key,
                                    shape=size_in,
                                    minval=0,
                                    maxval=vocab_size,
@@ -65,14 +65,14 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
 
     # Test __call__
     batch_out = stem(params=params,
-                     input_ids=input_ids,
+                     token_ids=token_ids,
                      key=call_key,
                      deterministic=False)
     print(f"batch_out.dtype = {batch_out.dtype}")
     print(f"batch_out.shape = {batch_out.shape}")
     assert isinstance(batch_out, Float[jnp.ndarray, "..."])
     assert batch_out.dtype == jnp.dtype(cfg.dtype)
-    assert batch_out.device == input_ids.device
+    assert batch_out.device == token_ids.device
     assert batch_out.shape == (nbatch, ntoks, cfg.d_model)
     assert jnp.all(jnp.isfinite(batch_out))
 
@@ -80,7 +80,7 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     stem_jit = jax.jit(stem,
                        static_argnames=("deterministic",))
     batch_out = stem_jit(params=params,
-                         input_ids=input_ids,
+                         token_ids=token_ids,
                          key=call_key,
                          deterministic=False)
 
@@ -91,6 +91,6 @@ def test_gpt2_stem(vocab_size, n_positions, d_model, dtype):
     profile_callable(fun=stem_jit,
                      n_runs=32,
                      params=params,
-                     input_ids=input_ids,
+                     token_ids=token_ids,
                      key=call_key,
                      deterministic=True)

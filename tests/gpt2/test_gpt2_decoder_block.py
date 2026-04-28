@@ -5,17 +5,16 @@ import pytest
 import jax
 import jax.numpy as jnp
 from jaxtyping import Float
-from models_x.utils.profile_callable import profile_callable
-from models_x.utils.print_memory_stats import print_memory_stats
+from models_x.util.profile_callable import profile_callable
+from models_x.util.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_decoder_block import GPT2DecoderBlock
 
 
 # gpt2_decoder_block.GPT2DecoderBlock
 @pytest.mark.parametrize("d_model", (768, ))
-@pytest.mark.parametrize("attn_implementation", ("attn", ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2_decoder_block(d_model, attn_implementation, dtype):
+def test_gpt2_decoder_block(d_model, dtype):
     """
     Pytest gpt2_decoder_block.GPT2DecoderBlock.
     """
@@ -26,13 +25,11 @@ def test_gpt2_decoder_block(d_model, attn_implementation, dtype):
 
     # Get config
     cfg = GPT2Config(d_model=d_model,
-                     attn_implementation=attn_implementation,
                      dtype=dtype)
 
     # Get mdl
     blk = GPT2DecoderBlock.from_config(cfg=cfg,
                                        d_model=d_model,
-                                       attn_implementation=attn_implementation,
                                        dtype=dtype)
     assert isinstance(blk, GPT2DecoderBlock)
     assert callable(blk)
@@ -55,7 +52,7 @@ def test_gpt2_decoder_block(d_model, attn_implementation, dtype):
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 512
+    ntoks = 1024
     size_in = (nbatch, ntoks, d_model)
     batch_in = jax.random.normal(key=data_key,
                                  shape=size_in,

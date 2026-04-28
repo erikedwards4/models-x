@@ -46,10 +46,11 @@ class GPT2Config():
     lnorm_eps: float = field(default=1e-5, metadata=metadata)
 
     # Attn implementation ('sdpa' vs. 'eager' or 'attn')
-    # Note: 'sdpa' does not support attn_dropout for JAX
+    # Note: 'sdpa' does not support attn_dropout for JAX,
+    # so this only uses 'attn' (aka 'eager')
     attn_implementation: str = field(default="attn", metadata=metadata)
 
-    # Helpers for derived properties
+    # Derived properties
     @property
     def d_inner(self: Self) -> int:
         """Sets d_inner for the GPT2DecoderBlockMLP."""

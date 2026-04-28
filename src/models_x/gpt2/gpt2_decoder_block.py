@@ -8,11 +8,10 @@ from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Array
+from jaxtyping import Array, Float
 from models_x.nn.layer_norm import LayerNorm
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_decoder_block_attn import GPT2DecoderBlockAttn
-from models_x.gpt2.gpt2_decoder_block_sdpa import GPT2DecoderBlockSDPA
 from models_x.gpt2.gpt2_decoder_block_mlp import GPT2DecoderBlockMLP
 
 __all__ = ["GPT2DecoderBlock"]
@@ -29,8 +28,7 @@ class GPT2DecoderBlock():
     cfg: GPT2Config = field(metadata=metadata)
     lnorm1: LayerNorm = field(metadata=metadata)
     lnorm2: LayerNorm = field(metadata=metadata)
-    attn: GPT2DecoderBlockAttn | GPT2DecoderBlockSDPA \
-        = field(metadata=metadata)
+    attn: GPT2DecoderBlockAttn = field(metadata=metadata)
     mlp: GPT2DecoderBlockMLP = field(metadata=metadata)
 
     @classmethod
@@ -43,8 +41,6 @@ class GPT2DecoderBlock():
         """
         # Config attributes
         d_model = int(kwargs.get('d_model', cfg.d_model))
-        attn_implementation = str(kwargs.get('attn_implementation',
-                                             cfg.attn_implementation))
         lnorm_eps = float(kwargs.get('lnorm_eps', cfg.lnorm_eps))
         dtype = jnp.dtype(kwargs.get('dtype', cfg.dtype))
 
@@ -61,9 +57,7 @@ class GPT2DecoderBlock():
                            dtype=dtype)
 
         # Decoder block attention
-        attn = GPT2DecoderBlockSDPA.from_config(cfg=cfg, **kwargs) \
-            if attn_implementation == "sdpa" else \
-            GPT2DecoderBlockAttn.from_config(cfg=cfg, **kwargs)
+        attn = GPT2DecoderBlockAttn.from_config(cfg=cfg, **kwargs)
 
         # Decoder block MLP
         mlp = GPT2DecoderBlockMLP.from_config(cfg=cfg, **kwargs)

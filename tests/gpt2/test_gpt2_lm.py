@@ -1,5 +1,5 @@
 """
-Pytest function for gpt2/gpt2.py.
+Pytest function for gpt2/gpt2_lm.py.
 """
 import pytest
 import jax
@@ -8,15 +8,15 @@ from jaxtyping import Float
 from models_x.util.profile_callable import profile_callable
 from models_x.util.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
-from models_x.gpt2.gpt2 import GPT2
+from models_x.gpt2.gpt2_lm import GPT2LM
 
 
-# gpt2.GPT2
+# gpt2_lm.GPT2LM
 @pytest.mark.parametrize("nblocks", (2, ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2(nblocks, dtype):
+def test_gpt2_lm(nblocks, dtype):
     """
-    Pytest gpt2.GPT2.
+    Pytest gpt2_lm.GPT2LM.
     """
     # Start
     print("")
@@ -28,8 +28,8 @@ def test_gpt2(nblocks, dtype):
                      dtype=dtype)
 
     # Get mdl
-    mdl = GPT2.from_config(cfg=cfg)
-    assert isinstance(mdl, GPT2)
+    mdl = GPT2LM.from_config(cfg=cfg)
+    assert isinstance(mdl, GPT2LM)
     assert callable(mdl)
     assert mdl.cfg.dtype == cfg.dtype == dtype
 
@@ -60,22 +60,22 @@ def test_gpt2(nblocks, dtype):
                                    ).to_device(device)
 
     # Test __call__
-    embeds = mdl(params=params,
+    logits = mdl(params=params,
                  token_ids=token_ids,
                  key=call_key,
                  deterministic=False)
-    print(f"embeds.dtype = {embeds.dtype}")
-    print(f"embeds.shape = {embeds.shape}")
-    assert isinstance(embeds, Float[jnp.ndarray, "..."])
-    assert embeds.dtype == jnp.dtype(cfg.dtype)
-    assert embeds.device == token_ids.device
-    assert embeds.shape == (nbatch, ntoks, cfg.d_model)
-    assert jnp.all(jnp.isfinite(embeds))
+    print(f"logits.dtype = {logits.dtype}")
+    print(f"logits.shape = {logits.shape}")
+    assert isinstance(logits, Float[jnp.ndarray, "..."])
+    assert logits.dtype == jnp.dtype(cfg.dtype)
+    assert logits.device == token_ids.device
+    assert logits.shape == (nbatch, ntoks, cfg.vocab_size)
+    assert jnp.all(jnp.isfinite(logits))
 
     # JIT compile
     mdl_jit = jax.jit(mdl,
                       static_argnames=("deterministic",))
-    embeds = mdl_jit(params=params,
+    logits = mdl_jit(params=params,
                      token_ids=token_ids,
                      key=call_key,
                      deterministic=False)

@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Array
+from jaxtyping import Array, Float
 from models_x.fn.dropout import dropout
 from models_x.nn.linear import Linear
 from models_x.gpt2.gpt2_config import GPT2Config

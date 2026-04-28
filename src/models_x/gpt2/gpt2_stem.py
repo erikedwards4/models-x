@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Int, Array
+from jaxtyping import Array, Float, Int
 from models_x.fn.dropout import dropout
 from models_x.nn.embedding import Embedding
 from models_x.gpt2.gpt2_config import GPT2Config
@@ -73,7 +73,7 @@ class GPT2Stem():
 
     def __call__(self: Self,
                  params: dict[str, Any],
-                 input_ids: Int[Array, "B T"],              # noqa: F722
+                 token_ids: Int[Array, "B T"],              # noqa: F722
                  key: Array | None = None,
                  deterministic: bool = True,
                  ) -> Float[Array, "B T D"]:                # noqa: F722
@@ -84,12 +84,12 @@ class GPT2Stem():
         """
         # Position IDs
         position_ids = jnp.arange(start=0,
-                                  stop=input_ids.shape[-1],
+                                  stop=token_ids.shape[-1],
                                   dtype=jnp.int32)          # T
 
         # Embeddings
         tok_emb = self.wte(params=params['wte'],
-                           arr=input_ids)                   # B x T x D
+                           arr=token_ids)                   # B x T x D
         pos_emb = self.wpe(params=params['wpe'],
                            arr=position_ids)                # T x D
         word_emb = tok_emb + pos_emb                        # B x T x D

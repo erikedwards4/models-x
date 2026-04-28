@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Array
+from jaxtyping import Array, Float
 from models_x.fn.gelu_new import gelu_new
 from models_x.fn.dropout import dropout
 from models_x.nn.linear import Linear

@@ -5,14 +5,14 @@ import pytest
 import jax
 import jax.numpy as jnp
 from jaxtyping import Float
-from models_x.utils.profile_callable import profile_callable
-from models_x.utils.print_memory_stats import print_memory_stats
+from models_x.util.profile_callable import profile_callable
+from models_x.util.print_memory_stats import print_memory_stats
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_decoder import GPT2Decoder
 
 
 # gpt2_decoder.GPT2Decoder
-@pytest.mark.parametrize("nblocks", (4, ))
+@pytest.mark.parametrize("nblocks", (2, ))
 @pytest.mark.parametrize("attn_implementation", ("eager", ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
 def test_gpt2_decoder(nblocks, attn_implementation, dtype):
@@ -52,7 +52,7 @@ def test_gpt2_decoder(nblocks, attn_implementation, dtype):
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 512
+    ntoks = 1024
     size_in = (nbatch, ntoks, cfg.d_model)
     batch_in = jax.random.normal(key=data_key,
                                  shape=size_in,

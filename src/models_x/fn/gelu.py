@@ -11,14 +11,16 @@ Thus, there is no performance gain to making a class,
 and storing a self.isqrt2 = ... Also, it is idiomatic
 JAX to use functions when no params dict.
 
-See gelu_new.py for reason to use numpy for constants.
+However, just as fast (and matching how other compilers
+work) is to define the constant _ISQRT2 at the module level.
 """
 
-import numpy as np
 from jax.scipy.special import erf
-from jaxtyping import Float, Array
+from jaxtyping import Array, Float
 
 __all__ = ["gelu"]
+
+_ISQRT2 = -0.7071067811865476  # -1/sqrt(2)
 
 
 def gelu(arr: Float[Array, "..."],
@@ -26,5 +28,4 @@ def gelu(arr: Float[Array, "..."],
     """
     arr: JAX Float Array of any shape
     """
-    isqrt2 = -np.sqrt(0.5).astype(arr.dtype)
-    return 0.5 * arr * (1.0 + erf(isqrt2 * arr))  # ...
+    return 0.5 * arr * (1.0 + erf(_ISQRT2 * arr))   # ...

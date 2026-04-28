@@ -1,5 +1,5 @@
 """
-Pytest function for gpt2/gpt2.py.
+Pytest training test for gpt2/gpt2.py.
 """
 import pytest
 import jax
@@ -12,12 +12,12 @@ from models_x.gpt2.gpt2 import GPT2
 
 
 # gpt2.GPT2
-@pytest.mark.parametrize("nblocks", (12, ))
+@pytest.mark.parametrize("nblocks", (6, ))
 @pytest.mark.parametrize("attn_implementation", ("eager", ))
 @pytest.mark.parametrize("dtype", (jnp.float32, ))
-def test_gpt2(nblocks, attn_implementation, dtype):
+def train_gpt2(nblocks, attn_implementation, dtype):
     """
-    Pytest gpt2.GPT2.
+    Pytest train gpt2.GPT2.
     """
     # Start
     print("")
@@ -52,7 +52,7 @@ def test_gpt2(nblocks, attn_implementation, dtype):
 
     # Make input data
     nbatch = 4          # micro-batch size
-    ntoks = 1024
+    ntoks = 512
     size_in = (nbatch, ntoks)
     input_ids = jax.random.randint(key=data_key,
                                    shape=size_in,

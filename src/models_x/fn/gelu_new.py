@@ -14,13 +14,17 @@ However, using np to get pi_2 is faster, and this is
 also how jnp source code computes constants. It can
 also be seen to give shorter intermediate representation
 with jax.make_jaxpr (JAX programming representation).
+
+However, just as fast (and matching how other compilers
+work) is to define the constant _PI_2 at the module level.
 """
 
-import numpy as np
 import jax.numpy as jnp
-from jaxtyping import Float, Array
+from jaxtyping import Array, Float
 
 __all__ = ["gelu_new"]
+
+_PI_2 = 0.7978845608028654  # np.sqrt(2.0/np.pi)
 
 
 def gelu_new(arr: Float[Array, "..."],
@@ -28,7 +32,5 @@ def gelu_new(arr: Float[Array, "..."],
     """
     arr: JAX Float Array of any shape
     """
-    # pi_2 = jnp.sqrt(2.0/jnp.pi).astype(arr.dtype)
-    pi_2 = np.sqrt(2.0/np.pi).astype(arr.dtype)
-    cdf = 0.5 * (1.0 + jnp.tanh(pi_2 * (arr + 0.044715*(arr**3))))  # ...
-    return arr * cdf                                                # ...
+    cdf = 0.5 * (1.0 + jnp.tanh(_PI_2 * (arr + 0.044715*(arr**3))))     # ...
+    return cdf * arr                                                    # ...

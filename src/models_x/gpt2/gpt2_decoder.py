@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from jax.tree_util import register_dataclass
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float, Array
+from jaxtyping import Array, Float
 from models_x.nn.layer_norm import LayerNorm
 from models_x.gpt2.gpt2_config import GPT2Config
 from models_x.gpt2.gpt2_decoder_block import GPT2DecoderBlock
